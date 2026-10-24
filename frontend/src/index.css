@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif: "Cormorant Garamond", Georgia, serif;
+  --font-sans: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
+  --color-ice-silver: #E9EDF0;
+  --color-deep-aubergine: #321B35;
+  --color-marigold: #F2B632;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: #E9EDF0;
+  color: #1e1e1e;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom scrollbar and subtle transitions */
+::selection {
+  background-color: #321B35;
+  color: #E9EDF0;
+}
