@@ -222,21 +222,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {mode === 'login' ? 'Sign In' : 'Create Account'}
               </button>
             </form>
-
-            <div className="mt-4 text-center">
-              <button
-                type="button"
-                onClick={() => {
-                  // demo quick fill for testing
-                  setEmail('abhikshardevadiga@gmail.com');
-                  setPassword('password123');
-                  setName('Abhikshar Devadiga');
-                }}
-                className="text-[11px] text-[#321B35]/60 hover:text-[#321B35] underline"
-              >
-                Quick demo autofill
-              </button>
-            </div>
           </div>
         )}
       </div>

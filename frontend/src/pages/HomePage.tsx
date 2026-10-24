@@ -14,11 +14,12 @@ export const HomePage: React.FC<HomePageProps> = ({
   onAddToCart,
   onSelectProduct,
 }) => {
-  // Form states matching Reference Frame 15-18
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
+  const [serviceRequired, setServiceRequired] = useState('');
+  const [projectDetails, setProjectDetails] = useState('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -44,10 +45,25 @@ export const HomePage: React.FC<HomePageProps> = ({
     if (!lastName.trim()) {
       errors.lastName = 'Last Name is required.';
     }
+
+    // Email validation
     if (!email.trim()) {
-      errors.email = 'Email is required.';
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Email address is required.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
       errors.email = 'Please enter a valid email address.';
+    }
+
+    // Indian Phone validation (10 digits, optional +91 or 0 prefix)
+    const cleanPhone = phone.replace(/[\s\-\(\)]/g, '');
+    if (!phone.trim()) {
+      errors.phone = 'Phone number is required.';
+    } else if (!/^(\+91|0)?[6-9]\d{9}$/.test(cleanPhone)) {
+      errors.phone = 'Please enter a valid 10-digit Indian mobile number.';
+    }
+
+    // Service required validation
+    if (!serviceRequired) {
+      errors.serviceRequired = 'Please select a service.';
     }
 
     if (Object.keys(errors).length > 0) {
@@ -58,6 +74,7 @@ export const HomePage: React.FC<HomePageProps> = ({
     setFormErrors({});
     setIsSubmitting(true);
 
+    // Frontend-only confirmation (backend API not connected yet)
     setTimeout(() => {
       setIsSubmitting(false);
       setSubmitSuccess(true);
@@ -65,7 +82,9 @@ export const HomePage: React.FC<HomePageProps> = ({
       setLastName('');
       setPhone('');
       setEmail('');
-    }, 800);
+      setServiceRequired('');
+      setProjectDetails('');
+    }, 600);
   };
 
   return (
@@ -76,7 +95,7 @@ export const HomePage: React.FC<HomePageProps> = ({
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{
-            backgroundImage: `url('https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=2000&q=80')`,
+            backgroundImage: `url('https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?auto=format&fit=crop&w=2000&q=80')`,
           }}
         >
           {/* Subtle gradient overlay to match video moody atmosphere */}
@@ -86,20 +105,20 @@ export const HomePage: React.FC<HomePageProps> = ({
         {/* Hero Content */}
         <div className="relative z-10 max-w-4xl mx-auto pt-24 pb-16 flex flex-col items-center">
           <h1 className="font-serif text-5xl sm:text-7xl lg:text-8xl text-white font-normal tracking-tight leading-[1.08] mb-6">
-            Claim Your Perfect
+            Walls That Make
             <br />
-            Finish
+            a Statement.
           </h1>
           <p className="text-white/90 text-base sm:text-xl font-light max-w-2xl mx-auto leading-relaxed mb-12">
-            Discover handcrafted decorative wall textures and luxury painting that elevate life, architecture, and interior spaces.
+            Discover exquisite wall textures, beautiful colours, and professional interior and exterior painting, crafted to transform your space.
           </p>
 
-          {/* Center Pill Button matching Video Frame 1 ("Browse Listings" -> "Browse Textures & Services") */}
+          {/* Center Pill Button matching Video Frame 1 */}
           <button
             onClick={() => onNavigate('shop')}
             className="px-8 py-3.5 rounded-full bg-[#E9EDF0] text-[#321B35] font-medium text-sm sm:text-base hover:bg-white transition-all shadow-lg hover:shadow-xl cursor-pointer"
           >
-            Browse Textures & Services
+            Explore Our Services
           </button>
         </div>
       </section>
@@ -138,10 +157,10 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {item.name}
                 </h3>
                 <p className="text-base text-[#1e1e1e]/90 font-light mb-4">
-                  ₹{item.price.toFixed(2)}
+                  Quotation on request
                 </p>
 
-                {/* Add to Cart Pill Button with spinner matching Frame 7 */}
+                {/* Select Finish Pill Button with spinner matching Frame 7 */}
                 <button
                   onClick={() => handleFeaturedAddToCart(item)}
                   disabled={isAdding}
@@ -150,7 +169,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                   {isAdding ? (
                     <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    'Add to cart'
+                    'Select Finish'
                   )}
                 </button>
               </div>
@@ -175,12 +194,12 @@ export const HomePage: React.FC<HomePageProps> = ({
           <div className="lg:col-span-6 grid grid-cols-1 sm:grid-cols-2 gap-8 text-sm sm:text-base text-[#1e1e1e]/80 leading-relaxed font-light">
             <div>
               <p>
-                We pinpoint extraordinary artisan finishes and Italian plaster recipes before the crowd even looks.
+                Discover distinctive wall textures and refined plaster finishes, thoughtfully chosen to bring character and depth to your interiors.
               </p>
             </div>
             <div>
               <p className="mb-2">
-                Our seasoned master craftsmen prepare every substrate, trowel seamless textures, and protect your living spaces.
+                With 20 years of industry experience, we focus on careful surface preparation, skilled craftsmanship, and quality finishes that transform your space.
               </p>
               <button
                 onClick={() => onNavigate('about')}
@@ -197,7 +216,7 @@ export const HomePage: React.FC<HomePageProps> = ({
       <section className="w-full px-6 sm:px-10 lg:px-16 pb-24 max-w-7xl mx-auto">
         <div className="w-full aspect-[16/9] sm:aspect-[21/10] overflow-hidden">
           <img
-            src="https://images.unsplash.com/photo-1600565193348-f74bd3c7ccdf?auto=format&fit=crop&w=1800&q=80"
+            src="/assets/colour-tone-craftsman.png"
             alt="COLOUR TONE Texture Consultation & Interior Styling"
             className="w-full h-full object-cover object-center"
           />
@@ -225,20 +244,20 @@ export const HomePage: React.FC<HomePageProps> = ({
               <div className="p-8 bg-white/80 rounded-3xl border border-emerald-300 text-[#321B35] space-y-3 animate-fadeIn">
                 <div className="flex items-center gap-2 text-emerald-700 font-medium">
                   <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <span className="text-lg">Quotation Request Received!</span>
+                  <span className="text-lg">Enquiry Form Validated (Demo Mode)</span>
                 </div>
                 <p className="text-sm text-[#1e1e1e]/80 leading-relaxed">
-                  Thank you for reaching out to COLOUR TONE. Our master painting advisor in Mangalore will review your details and reach out via phone or email within 24 hours.
+                  Thank you for submitting your project requirements. Since backend services are not yet connected, your details have not been transmitted or stored. The form is ready for future API integration.
                 </p>
                 <button
                   onClick={() => setSubmitSuccess(false)}
-                  className="mt-3 px-6 py-2 rounded-full border border-[#321B35] text-xs font-medium text-[#321B35] hover:bg-[#321B35]/5"
+                  className="mt-3 px-6 py-2 rounded-full border border-[#321B35] text-xs font-medium text-[#321B35] hover:bg-[#321B35]/5 cursor-pointer"
                 >
                   Send another inquiry
                 </button>
               </div>
             ) : (
-              <form onSubmit={handleInquirySubmit} className="space-y-6">
+              <form onSubmit={handleInquirySubmit} className="space-y-5">
                 <div>
                   <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-2">
                     Name
@@ -263,6 +282,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                             setFormErrors({ ...formErrors, firstName: '' });
                           }
                         }}
+                        placeholder="First name"
                         className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
                       />
                     </div>
@@ -286,50 +306,109 @@ export const HomePage: React.FC<HomePageProps> = ({
                             setFormErrors({ ...formErrors, lastName: '' });
                           }
                         }}
+                        placeholder="Last name"
                         className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
                       />
                     </div>
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-4">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. 9972727446"
-                    className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
-                  />
+                {/* Contact: Phone & Email */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-4">
+                      Phone (required)
+                    </label>
+                    {formErrors.phone && (
+                      <div className="mb-2 px-3 py-1 bg-red-600 text-white text-[11px] font-medium rounded-full inline-flex items-center gap-1.5 shadow-xs">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{formErrors.phone}</span>
+                      </div>
+                    )}
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        if (formErrors.phone) {
+                          setFormErrors({ ...formErrors, phone: '' });
+                        }
+                      }}
+                      placeholder="e.g. 9972727446"
+                      className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-4">
+                      Email (required)
+                    </label>
+                    {formErrors.email && (
+                      <div className="mb-2 px-3 py-1 bg-red-600 text-white text-[11px] font-medium rounded-full inline-flex items-center gap-1.5 shadow-xs">
+                        <AlertCircle className="w-3.5 h-3.5" />
+                        <span>{formErrors.email}</span>
+                      </div>
+                    )}
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => {
+                        setEmail(e.target.value);
+                        if (formErrors.email) {
+                          setFormErrors({ ...formErrors, email: '' });
+                        }
+                      }}
+                      placeholder="you@example.com"
+                      className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
+                    />
+                  </div>
                 </div>
 
+                {/* Service Required Dropdown */}
                 <div>
                   <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-4">
-                    Email (required)
+                    Service Required (required)
                   </label>
-                  {formErrors.email && (
+                  {formErrors.serviceRequired && (
                     <div className="mb-2 px-3 py-1 bg-red-600 text-white text-[11px] font-medium rounded-full inline-flex items-center gap-1.5 shadow-xs">
                       <AlertCircle className="w-3.5 h-3.5" />
-                      <span>{formErrors.email}</span>
+                      <span>{formErrors.serviceRequired}</span>
                     </div>
                   )}
-                  <input
-                    type="email"
-                    value={email}
+                  <select
+                    value={serviceRequired}
                     onChange={(e) => {
-                      setEmail(e.target.value);
-                      if (formErrors.email) {
-                        setFormErrors({ ...formErrors, email: '' });
+                      setServiceRequired(e.target.value);
+                      if (formErrors.serviceRequired) {
+                        setFormErrors({ ...formErrors, serviceRequired: '' });
                       }
                     }}
-                    placeholder="abhikshardevadiga@gmail.com"
-                    className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
+                    className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm cursor-pointer"
+                  >
+                    <option value="">Select a service...</option>
+                    <option value="Interior Painting">Interior Painting</option>
+                    <option value="Exterior Painting">Exterior Painting</option>
+                    <option value="Wall Textures">Wall Textures</option>
+                    <option value="Colour Consultation">Colour Consultation</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Project Details Multiline Text Area */}
+                <div>
+                  <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-4">
+                    Project Details
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={projectDetails}
+                    onChange={(e) => setProjectDetails(e.target.value)}
+                    placeholder="Describe your property, approx. wall area, preferred colours, or timeline..."
+                    className="w-full px-5 py-3.5 rounded-2xl bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm resize-none"
                   />
                 </div>
 
-                {/* Send Button matching Video Frame 15 & 17 */}
+                {/* Send Button */}
                 <div className="pt-2">
                   <button
                     type="submit"

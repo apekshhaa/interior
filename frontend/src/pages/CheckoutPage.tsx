@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { CartItem, BookingDetails, User } from '../types';
-import { ShieldCheck, CheckCircle2, ChevronRight, Edit3, Calendar, Clock, Home, Building2, MapPin, Phone, Mail, Sparkles, Tag } from 'lucide-react';
+import { COLOUR_PALETTE, ColourSwatch } from '../data/colours';
+import { ArrowLeft, Check, Phone, MessageSquare, AlertCircle } from 'lucide-react';
 
 interface CheckoutPageProps {
   items: CartItem[];
@@ -11,6 +12,20 @@ interface CheckoutPageProps {
   defaultServiceName?: string;
 }
 
+const AVAILABLE_SERVICES = [
+  'Interior Painting',
+  'Exterior Painting',
+  'Decorative Wall Textures',
+  'Colour Consultation',
+];
+
+const TIME_WINDOWS = [
+  'Morning (9:00 AM – 1:00 PM)',
+  'Afternoon (1:00 PM – 5:00 PM)',
+  'Evening (5:00 PM – 7:30 PM)',
+  'Flexible / Any Time',
+];
+
 export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   items,
   currentUser,
@@ -19,688 +34,810 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   onBackToCart,
   defaultServiceName,
 }) => {
-  // Current checkout stage: 'form' | 'review' | 'confirmed'
-  const [stage, setStage] = useState<'form' | 'review' | 'confirmed'>('form');
+  // Navigation stage: 'form' | 'review' | 'submitted'
+  const [stage, setStage] = useState<'form' | 'review' | 'submitted'>('form');
 
-  // Customer Form Data
-  const [firstName, setFirstName] = useState(currentUser ? currentUser.name.split(' ')[0] : 'Adish');
-  const [lastName, setLastName] = useState(currentUser ? currentUser.name.split(' ').slice(1).join(' ') || 'Devadiga' : 'Devadiga');
-  const [email, setEmail] = useState(currentUser?.email || 'abhikshardevadiga@gmail.com');
-  const [phone, setPhone] = useState(currentUser?.phone || '+91 9972727446');
-  const [propertyAddress, setPropertyAddress] = useState('Kadri Hills, Near Circuit House, Mangalore 575004');
+  // Section 1: Contact Details (no hardcoded fake customer data)
+  const [fullName, setFullName] = useState(currentUser?.name || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
+
+  // Section 2: Project Details
   const [propertyType, setPropertyType] = useState<'Residential' | 'Commercial'>('Residential');
-  const [approxArea, setApproxArea] = useState('1,800 sq.ft (3 BHK Apartment)');
-  const [selectedServices, setSelectedServices] = useState<string[]>(
-    defaultServiceName ? [defaultServiceName] : ['Italian Venetian Plaster', 'Interior Emulsion']
-  );
-  const [preferredTextures, setPreferredTextures] = useState<string[]>([
-    'Stucco Marble Polish',
-    'Travertine Stone Finish',
-  ]);
-  const [preferredDate, setPreferredDate] = useState('2026-10-28');
-  const [preferredTime, setPreferredTime] = useState('10:00 AM – 1:00 PM (Morning Slot)');
-  const [notes, setNotes] = useState('Feature wall in living room & high-ceiling entrance foyer.');
-
-  // Discount code state
-  const [discountCode, setDiscountCode] = useState('');
-  const [discountApplied, setDiscountApplied] = useState(false);
-  const [showDiscountInput, setShowDiscountInput] = useState(false);
-  const [discountError, setDiscountError] = useState('');
-
-  // Confirmation state
-  const [bookingRefId, setBookingRefId] = useState('');
-  const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
-
-  const availableServices = [
-    'Italian Venetian Plaster',
-    'Travertine & Rustic Stone',
-    'Interior Emulsion & Priming',
-    'Weather-Shield Exterior Facade',
-    'Metallic Pearl & Velvet Accent',
-    'Industrial Micro-Cement Concrete',
-  ];
-
-  const availableTextures = [
-    'Stucco Marble Polish',
-    'Travertine Stone Finish',
-    'Sand & Swirl Ripple',
-    'Raw Concrete Loft',
-    'Gold / Bronze Pearlescent',
-  ];
-
-  const subtotal = items.reduce(
-    (sum, item) => sum + item.product.price * item.quantity,
-    0
-  );
-  const discountAmount = discountApplied ? Math.min(subtotal * 0.1, 200) : 0;
-  const total = Math.max(0, subtotal - discountAmount);
-
-  const handleApplyDiscount = () => {
-    if (discountCode.trim().toUpperCase() === 'COLOUR20' || discountCode.trim().toUpperCase() === 'MANGALORE') {
-      setDiscountApplied(true);
-      setDiscountError('');
-    } else {
-      setDiscountError('Invalid voucher code. Try COLOUR20');
+  const [propertyAddress, setPropertyAddress] = useState('');
+  const [approxArea, setApproxArea] = useState('');
+  const [selectedServices, setSelectedServices] = useState<string[]>(() => {
+    if (!defaultServiceName) return ['Interior Painting'];
+    const lower = defaultServiceName.toLowerCase();
+    if (lower.includes('exterior')) return ['Exterior Painting'];
+    if (lower.includes('consultation')) return ['Colour Consultation'];
+    if (lower.includes('texture') || lower.includes('plaster') || lower.includes('stucco') || lower.includes('concrete')) {
+      return ['Decorative Wall Textures'];
     }
+    return ['Interior Painting'];
+  });
+  const [requirements, setRequirements] = useState('');
+
+  // Section 3: Preferred Consultation
+  const todayString = useMemo(() => new Date().toISOString().split('T')[0], []);
+  const [preferredDate, setPreferredDate] = useState('');
+  const [preferredTime, setPreferredTime] = useState(TIME_WINDOWS[0]);
+
+  // Validation errors
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  // Right-side Selected Colours state
+  const [selectedColours, setSelectedColours] = useState<ColourSwatch[]>(() => {
+    try {
+      const saved = localStorage.getItem('colourtone_selected_colours');
+      if (saved) {
+        const ids: string[] = JSON.parse(saved);
+        const matched = COLOUR_PALETTE.filter((c) => ids.includes(c.id));
+        if (matched.length > 0) return matched;
+      }
+    } catch {
+      // Fallback
+    }
+    // Initial sensible palette selection
+    return COLOUR_PALETTE.filter((c) => ['col-01', 'col-10', 'col-26'].includes(c.id));
+  });
+
+  const handleRemoveColour = (id: string) => {
+    setSelectedColours((prev) => {
+      const next = prev.filter((c) => c.id !== id);
+      try {
+        localStorage.setItem('colourtone_selected_colours', JSON.stringify(next.map((c) => c.id)));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
   };
 
-  const validateForm = () => {
-    const errors: { [key: string]: string } = {};
-    if (!firstName.trim()) errors.firstName = 'First Name is required.';
-    if (!lastName.trim()) errors.lastName = 'Last Name is required.';
-    if (!email.trim()) errors.email = 'Email address is required.';
-    if (!phone.trim()) errors.phone = 'Phone number is required.';
-    if (!propertyAddress.trim()) errors.propertyAddress = 'Property address in Mangalore is required.';
-    if (!preferredDate) errors.preferredDate = 'Site visit date is required.';
+  // Deduplicate textures safely to avoid accidental repeated rows
+  const uniqueTextures = useMemo(() => {
+    const seen = new Set<string>();
+    return items.filter((it) => {
+      const key = it.product.id || it.product.name;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [items]);
 
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return false;
+  const toggleService = (srv: string) => {
+    setSelectedServices((prev) =>
+      prev.includes(srv) ? prev.filter((s) => s !== srv) : [...prev, srv]
+    );
+  };
+
+  const validate = () => {
+    const errs: { [key: string]: string } = {};
+    if (!fullName.trim()) {
+      errs.fullName = 'Full Name is required.';
     }
-    setFormErrors({});
-    return true;
+    if (!phone.trim()) {
+      errs.phone = 'Phone Number is required.';
+    } else if (phone.trim().length < 8) {
+      errs.phone = 'Please enter a valid phone number.';
+    }
+    if (!propertyAddress.trim()) {
+      errs.propertyAddress = 'Property Address is required.';
+    }
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
   const handleContinueToReview = (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateForm()) {
+    if (validate()) {
       setStage('review');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
 
-  const handleFinalSubmit = () => {
-    const ref = `CT-${Math.floor(100000 + Math.random() * 900000)}`;
-    setBookingRefId(ref);
+  const handleSubmitEnquiry = () => {
+    const nameParts = fullName.trim().split(' ');
+    const firstName = nameParts[0] || fullName.trim();
+    const lastName = nameParts.slice(1).join(' ');
+
     const bookingData: BookingDetails = {
       firstName,
       lastName,
-      email,
-      phone,
-      propertyAddress,
+      email: email.trim(),
+      phone: phone.trim(),
+      propertyAddress: propertyAddress.trim(),
       propertyType,
-      approxArea,
+      approxArea: approxArea.trim(),
       selectedServices,
-      preferredTextures,
+      preferredTextures: uniqueTextures.map((t) => t.product.name),
       preferredDate,
       preferredTime,
-      notes,
+      notes: requirements.trim(),
     };
-    onBookingConfirmed(bookingData, ref);
-    setStage('confirmed');
+
+    // Save genuine submitted enquiry record to localStorage
+    try {
+      localStorage.setItem(
+        'colourtone_last_enquiry',
+        JSON.stringify({
+          date: new Date().toLocaleDateString('en-IN', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          }),
+          address: propertyAddress.trim(),
+          services: selectedServices,
+        })
+      );
+    } catch {
+      // ignore
+    }
+
+    // Forward to parent callback if provided
+    onBookingConfirmed(bookingData, '');
+    setStage('submitted');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  return (
-    <div className="w-full bg-[#fbfbfb] text-[#1e1e1e] py-10 px-4 sm:px-8 lg:px-14 min-h-screen">
-      <div className="max-w-6xl mx-auto">
-        {/* Breadcrumb / Step Indicator */}
-        <div className="mb-8 flex items-center justify-between text-xs text-[#1e1e1e]/60 pb-4 border-b border-[#1e1e1e]/10">
-          <div className="flex items-center gap-2">
-            <button
-              onClick={onBackToCart}
-              className="hover:text-[#321B35] underline cursor-pointer"
-            >
-              Cart
-            </button>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className={stage === 'form' ? 'text-[#321B35] font-semibold' : ''}>
-              1. Customer & Project Details
-            </span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className={stage === 'review' ? 'text-[#321B35] font-semibold' : ''}>
-              2. Review Request
-            </span>
-            <ChevronRight className="w-3.5 h-3.5" />
-            <span className={stage === 'confirmed' ? 'text-emerald-700 font-semibold' : ''}>
-              3. Confirmation
-            </span>
-          </div>
+  const inputClass =
+    'w-full px-4 py-3 bg-white border border-[#1e1e1e]/20 rounded-xl text-sm text-[#1e1e1e] focus:outline-none focus:border-[#321B35] transition-colors placeholder:text-[#1e1e1e]/40';
+  const labelClass = 'block text-xs font-medium text-[#1e1e1e]/80 mb-1.5';
+  const errorClass = 'mt-1 text-xs text-red-600 flex items-center gap-1';
 
-          <span className="font-serif text-sm text-[#321B35] font-medium hidden sm:inline">
-            COLOUR TONE Quotation & Booking
-          </span>
+  // Construct WhatsApp enquiry message
+  const whatsappMessage = useMemo(() => {
+    const parts = [
+      `Hello COLOUR TONE, I would like to enquire about a painting project.`,
+      `Name: ${fullName}`,
+      `Phone: ${phone}`,
+      email ? `Email: ${email}` : '',
+      `Property: ${propertyAddress} (${propertyType})`,
+      approxArea ? `Approx Area: ${approxArea} sq. ft.` : '',
+      selectedServices.length > 0 ? `Services Required: ${selectedServices.join(', ')}` : '',
+      preferredDate ? `Preferred Consultation Date: ${preferredDate} (${preferredTime})` : '',
+      uniqueTextures.length > 0
+        ? `Selected Textures: ${uniqueTextures.map((t) => t.product.name).join(', ')}`
+        : '',
+      selectedColours.length > 0
+        ? `Selected Colours: ${selectedColours.map((c) => `${c.name} (${c.hex})`).join(', ')}`
+        : '',
+      requirements ? `Additional Requirements: ${requirements}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+    return encodeURIComponent(parts);
+  }, [
+    fullName,
+    phone,
+    email,
+    propertyAddress,
+    propertyType,
+    approxArea,
+    selectedServices,
+    preferredDate,
+    preferredTime,
+    uniqueTextures,
+    selectedColours,
+    requirements,
+  ]);
+
+  return (
+    <div className="w-full bg-[#E9EDF0] text-[#1e1e1e] py-10 sm:py-14 px-4 sm:px-8 lg:px-14 min-h-screen">
+      <div className="max-w-6xl mx-auto">
+        {/* Navigation Breadcrumb */}
+        <div className="mb-6 flex items-center gap-2 text-xs text-[#1e1e1e]/60">
+          <button
+            type="button"
+            onClick={onBackToCart}
+            className="hover:text-[#321B35] cursor-pointer inline-flex items-center gap-1 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Catalogue & Finishes</span>
+          </button>
+          <span>/</span>
+          <span className="text-[#321B35] font-medium">Project Selection</span>
         </div>
 
-        {stage === 'confirmed' ? (
-          /* Confirmation Screen */
-          <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 rounded-3xl border border-[#321B35]/15 shadow-xl text-center space-y-6 animate-fadeIn">
-            <div className="w-20 h-20 bg-emerald-100 text-emerald-700 rounded-full flex items-center justify-center mx-auto shadow-inner">
-              <CheckCircle2 className="w-10 h-10" />
-            </div>
+        {/* Page Heading & Description */}
+        <header className="mb-8 pb-6 border-b border-[#321B35]/15 space-y-2">
+          <h1 className="font-serif text-3xl sm:text-4xl text-[#321B35] font-normal tracking-tight">
+            Your Project Selection
+          </h1>
+          <p className="text-sm sm:text-base text-[#1e1e1e]/75 font-light leading-relaxed max-w-3xl">
+            Review your preferred finishes and colours, then share a few details so we can discuss your project.
+          </p>
+        </header>
 
-            <div>
-              <span className="text-xs font-semibold uppercase tracking-widest text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full">
-                Booking Request Submitted
+        {stage === 'submitted' ? (
+          /* Honest Enquiry Submitted View (No fake booking confirmation or simulated calendar lock) */
+          <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#321B35]/15 shadow-sm space-y-6">
+            <div className="space-y-2">
+              <span className="text-xs font-medium uppercase tracking-wider text-[#321B35] bg-[#321B35]/10 px-3 py-1 rounded-full">
+                Enquiry Prepared
               </span>
-              <h1 className="font-serif text-3xl sm:text-4xl text-[#321B35] font-normal mt-3">
-                Thank You, {firstName}!
-              </h1>
-              <p className="text-sm text-[#1e1e1e]/75 mt-2">
-                Your painting project quotation & site-visit request is confirmed.
+              <h2 className="font-serif text-2xl sm:text-3xl text-[#321B35] pt-2">
+                Thank you{fullName ? `, ${fullName}` : ''}
+              </h2>
+              <p className="text-sm text-[#1e1e1e]/75 font-light leading-relaxed">
+                Your project details and selections have been prepared. As site visits and consultations require direct schedule coordination, appointment dates and times are finalized directly with our team.
               </p>
             </div>
 
-            <div className="p-6 bg-[#E9EDF0]/60 rounded-2xl border border-[#321B35]/10 text-left space-y-3 text-xs sm:text-sm">
-              <div className="flex justify-between items-center pb-2 border-b border-[#321B35]/10">
-                <span className="text-[#1e1e1e]/60 font-light">Booking Reference:</span>
-                <span className="font-mono font-bold text-[#321B35] text-base">{bookingRefId}</span>
+            {/* Project Summary Box */}
+            <div className="p-5 bg-[#E9EDF0]/50 rounded-xl border border-[#1e1e1e]/10 space-y-2.5 text-xs sm:text-sm">
+              <div className="flex justify-between items-start gap-4">
+                <span className="text-[#1e1e1e]/60 font-light shrink-0">Property Address:</span>
+                <span className="font-medium text-right text-[#1e1e1e]">{propertyAddress}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#1e1e1e]/60">Property:</span>
-                <span className="font-medium text-[#1e1e1e] text-right max-w-xs">{propertyAddress} ({propertyType})</span>
+              <div className="flex justify-between items-center gap-4">
+                <span className="text-[#1e1e1e]/60 font-light shrink-0">Property Type:</span>
+                <span className="font-medium text-[#1e1e1e]">{propertyType}</span>
               </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#1e1e1e]/60">Approx Area:</span>
-                <span className="font-medium text-[#1e1e1e]">{approxArea}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#1e1e1e]/60">Site Visit Scheduled:</span>
-                <span className="font-medium text-[#321B35]">{preferredDate} at {preferredTime}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-[#1e1e1e]/60">Contact:</span>
-                <span className="font-medium text-[#1e1e1e]">{phone} • {email}</span>
+              {approxArea && (
+                <div className="flex justify-between items-center gap-4">
+                  <span className="text-[#1e1e1e]/60 font-light shrink-0">Approximate Area:</span>
+                  <span className="font-medium text-[#1e1e1e]">{approxArea} sq. ft.</span>
+                </div>
+              )}
+              {selectedServices.length > 0 && (
+                <div className="flex justify-between items-start gap-4">
+                  <span className="text-[#1e1e1e]/60 font-light shrink-0">Services:</span>
+                  <span className="font-medium text-right text-[#1e1e1e]">
+                    {selectedServices.join(', ')}
+                  </span>
+                </div>
+              )}
+              {preferredDate && (
+                <div className="flex justify-between items-center gap-4">
+                  <span className="text-[#1e1e1e]/60 font-light shrink-0">Preferred Window:</span>
+                  <span className="font-medium text-[#321B35]">
+                    {preferredDate} • {preferredTime}
+                  </span>
+                </div>
+              )}
+              <div className="flex justify-between items-center gap-4 pt-1 border-t border-[#1e1e1e]/10">
+                <span className="text-[#1e1e1e]/60 font-light shrink-0">Contact Phone:</span>
+                <span className="font-medium text-[#1e1e1e]">{phone}</span>
               </div>
             </div>
 
-            <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200/80 text-xs text-[#1e1e1e]/80 text-left leading-relaxed">
-              <p className="font-medium text-[#321B35] mb-1">
-                Next Steps (Business Owner Notification):
+            {/* Direct Contact Actions */}
+            <div className="space-y-3 pt-2">
+              <p className="text-xs text-[#1e1e1e]/70 leading-relaxed font-light">
+                Our texture specialist in Mangalore will contact you to discuss your project and arrange physical finish samples. To reach us immediately, choose an option below:
               </p>
-              Our senior texture specialist in Mangalore will inspect your preferred textures and contact you at <strong className="text-[#321B35]">{phone}</strong> prior to visiting with physical sample boards.
+
+              <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                <a
+                  href={`https://wa.me/919972727446?text=${whatsappMessage}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 py-3 px-5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  <span>Send via WhatsApp</span>
+                </a>
+
+                <a
+                  href="tel:9972727446"
+                  className="flex-1 py-3 px-5 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
+                >
+                  <Phone className="w-4 h-4" />
+                  <span>Call 9972727446</span>
+                </a>
+              </div>
             </div>
 
-            <div className="pt-4 flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="pt-2 text-center">
               <button
+                type="button"
                 onClick={onBackToCart}
-                className="px-8 py-3 rounded-full bg-[#321B35] text-white text-sm font-medium hover:bg-[#432347] transition-all cursor-pointer shadow-md"
+                className="text-xs text-[#321B35] hover:underline underline-offset-2 cursor-pointer font-medium"
               >
-                Back to Home
+                Return to Catalogue
               </button>
             </div>
           </div>
         ) : (
-          /* Main 2-Column Checkout Layout matching Video Frame 49 & 50 */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
-            {/* Left Column: Booking Form or Review View */}
-            <div className="lg:col-span-7 bg-white p-6 sm:p-10 rounded-2xl border border-[#e5e5e5] shadow-xs">
+          /* Two-Column Layout: Form on Left (~65%), Selections on Right (~35%) */
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-10 items-start">
+            {/* Left Column: Form or Review */}
+            <div className="lg:col-span-8 bg-white p-6 sm:p-9 rounded-2xl border border-[#321B35]/15 shadow-2xs">
               {stage === 'form' ? (
-                <form onSubmit={handleContinueToReview} className="space-y-8">
-                  {/* Step 1: Customer Identification */}
-                  <div>
-                    <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight pb-3 mb-4 border-b border-[#e5e5e5]">
-                      1. Contact Information
-                    </h2>
+                <form onSubmit={handleContinueToReview} noValidate className="space-y-8">
+                  {/* Section 1: Contact Details */}
+                  <div className="space-y-4">
+                    <div className="border-b border-[#1e1e1e]/10 pb-2">
+                      <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight">
+                        Contact Details
+                      </h2>
+                      <p className="text-xs text-[#1e1e1e]/60 font-light mt-0.5">
+                        Please provide your contact details so we can reach you.
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          First Name (required)
+                      {/* Full Name (required) */}
+                      <div className="sm:col-span-2">
+                        <label className={labelClass}>
+                          Full Name <span className="text-red-500">*</span>
                         </label>
-                        {formErrors.firstName && (
-                          <p className="text-[11px] text-red-600 mb-1 ml-3">{formErrors.firstName}</p>
-                        )}
                         <input
                           type="text"
-                          value={firstName}
-                          onChange={(e) => setFirstName(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
+                          value={fullName}
+                          onChange={(e) => {
+                            setFullName(e.target.value);
+                            if (errors.fullName) setErrors((prev) => ({ ...prev, fullName: '' }));
+                          }}
+                          placeholder="Your full name"
+                          className={inputClass}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Last Name (required)
-                        </label>
-                        {formErrors.lastName && (
-                          <p className="text-[11px] text-red-600 mb-1 ml-3">{formErrors.lastName}</p>
+                        {errors.fullName && (
+                          <p className={errorClass}>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>{errors.fullName}</span>
+                          </p>
                         )}
-                        <input
-                          type="text"
-                          value={lastName}
-                          onChange={(e) => setLastName(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
-                        />
                       </div>
+
+                      {/* Phone Number (required) */}
                       <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Phone Number (required)
+                        <label className={labelClass}>
+                          Phone Number <span className="text-red-500">*</span>
                         </label>
-                        {formErrors.phone && (
-                          <p className="text-[11px] text-red-600 mb-1 ml-3">{formErrors.phone}</p>
-                        )}
                         <input
                           type="tel"
                           value={phone}
-                          onChange={(e) => setPhone(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
+                          onChange={(e) => {
+                            setPhone(e.target.value);
+                            if (errors.phone) setErrors((prev) => ({ ...prev, phone: '' }));
+                          }}
+                          placeholder="Contact phone number"
+                          className={inputClass}
                         />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Email Address (required)
-                        </label>
-                        {formErrors.email && (
-                          <p className="text-[11px] text-red-600 mb-1 ml-3">{formErrors.email}</p>
+                        {errors.phone && (
+                          <p className={errorClass}>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>{errors.phone}</span>
+                          </p>
                         )}
+                      </div>
+
+                      {/* Email Address (optional) */}
+                      <div>
+                        <label className={labelClass}>
+                          Email Address <span className="text-[#1e1e1e]/40 font-normal">(optional)</span>
+                        </label>
                         <input
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
+                          placeholder="email@example.com"
+                          className={inputClass}
                         />
                       </div>
                     </div>
                   </div>
 
-                  {/* Step 2: Property & Painting Scope */}
-                  <div>
-                    <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight pb-3 mb-4 border-b border-[#e5e5e5]">
-                      2. Property & Project Details
-                    </h2>
+                  {/* Section 2: Project Details */}
+                  <div className="space-y-4 pt-2">
+                    <div className="border-b border-[#1e1e1e]/10 pb-2">
+                      <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight">
+                        Project Details
+                      </h2>
+                      <p className="text-xs text-[#1e1e1e]/60 font-light mt-0.5">
+                        Tell us about the property and painting scope.
+                      </p>
+                    </div>
 
-                    {/* Property Type Toggle */}
-                    <div className="mb-4">
-                      <label className="block text-xs text-[#1e1e1e]/70 mb-2 ml-1">
-                        Property Type
-                      </label>
-                      <div className="flex gap-3">
+                    {/* Property Type: Residential / Commercial */}
+                    <div>
+                      <label className={labelClass}>Property Type</label>
+                      <div className="grid grid-cols-2 gap-3 max-w-sm">
                         <button
                           type="button"
                           onClick={() => setPropertyType('Residential')}
-                          className={`flex-1 py-2 px-4 rounded-full text-xs font-medium flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium border text-center transition-colors cursor-pointer ${
                             propertyType === 'Residential'
                               ? 'bg-[#321B35] text-white border-[#321B35]'
-                              : 'bg-white text-[#1e1e1e]/70 border-[#e2e4e8] hover:border-[#321B35]'
+                              : 'bg-white text-[#1e1e1e]/80 border-[#1e1e1e]/20 hover:border-[#321B35]'
                           }`}
                         >
-                          <Home className="w-3.5 h-3.5" />
-                          <span>Residential (Villa / Flat)</span>
+                          Residential
                         </button>
                         <button
                           type="button"
                           onClick={() => setPropertyType('Commercial')}
-                          className={`flex-1 py-2 px-4 rounded-full text-xs font-medium flex items-center justify-center gap-2 border transition-all cursor-pointer ${
+                          className={`py-2.5 px-4 rounded-xl text-xs sm:text-sm font-medium border text-center transition-colors cursor-pointer ${
                             propertyType === 'Commercial'
                               ? 'bg-[#321B35] text-white border-[#321B35]'
-                              : 'bg-white text-[#1e1e1e]/70 border-[#e2e4e8] hover:border-[#321B35]'
+                              : 'bg-white text-[#1e1e1e]/80 border-[#1e1e1e]/20 hover:border-[#321B35]'
                           }`}
                         >
-                          <Building2 className="w-3.5 h-3.5" />
-                          <span>Commercial / Office</span>
+                          Commercial
                         </button>
                       </div>
                     </div>
 
-                    {/* Address & Area */}
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Property Address in Mangalore (required)
-                        </label>
-                        {formErrors.propertyAddress && (
-                          <p className="text-[11px] text-red-600 mb-1 ml-3">{formErrors.propertyAddress}</p>
-                        )}
-                        <input
-                          type="text"
-                          value={propertyAddress}
-                          onChange={(e) => setPropertyAddress(e.target.value)}
-                          placeholder="Building, street, locality, Mangalore..."
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
-                        />
-                      </div>
+                    {/* Property Address (required) */}
+                    <div>
+                      <label className={labelClass}>
+                        Property Address <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={propertyAddress}
+                        onChange={(e) => {
+                          setPropertyAddress(e.target.value);
+                          if (errors.propertyAddress) {
+                            setErrors((prev) => ({ ...prev, propertyAddress: '' }));
+                          }
+                        }}
+                        placeholder="Locality, building, or street address in Mangalore..."
+                        className={inputClass}
+                      />
+                      {errors.propertyAddress && (
+                        <p className={errorClass}>
+                          <AlertCircle className="w-3.5 h-3.5" />
+                          <span>{errors.propertyAddress}</span>
+                        </p>
+                      )}
+                    </div>
 
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Approximate Painting Area
-                        </label>
-                        <input
-                          type="text"
-                          value={approxArea}
-                          onChange={(e) => setApproxArea(e.target.value)}
-                          placeholder="e.g. 1500 sq ft or 3 Rooms"
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
-                        />
+                    {/* Approximate Area in sq. ft. (optional numeric field) */}
+                    <div>
+                      <label className={labelClass}>
+                        Approximate Area in sq. ft. <span className="text-[#1e1e1e]/40 font-normal">(optional)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={approxArea}
+                        onChange={(e) => setApproxArea(e.target.value)}
+                        placeholder="e.g. 1500"
+                        className={inputClass}
+                      />
+                    </div>
+
+                    {/* Service Required: 4 Verified Services */}
+                    <div>
+                      <label className={labelClass}>
+                        Service Required <span className="text-[#1e1e1e]/40 font-normal">(select all that apply)</span>
+                      </label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        {AVAILABLE_SERVICES.map((srv) => {
+                          const checked = selectedServices.includes(srv);
+                          return (
+                            <label
+                              key={srv}
+                              className={`flex items-center gap-3 p-3 rounded-xl border text-xs sm:text-sm cursor-pointer transition-colors select-none ${
+                                checked
+                                  ? 'bg-[#321B35]/5 border-[#321B35] text-[#321B35] font-medium'
+                                  : 'bg-white border-[#1e1e1e]/20 text-[#1e1e1e]/80 hover:border-[#1e1e1e]/40'
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() => toggleService(srv)}
+                                className="w-4 h-4 rounded text-[#321B35] focus:ring-[#321B35] accent-[#321B35]"
+                              />
+                              <span>{srv}</span>
+                            </label>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    {/* Service & Texture Multi-selection */}
-                    <div className="mt-5 space-y-4">
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-2 ml-1">
-                          Select Interested Services (Multiple allowed)
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {availableServices.map((srv) => {
-                            const isSelected = selectedServices.includes(srv);
-                            return (
-                              <button
-                                type="button"
-                                key={srv}
-                                onClick={() => {
-                                  if (isSelected) {
-                                    setSelectedServices(selectedServices.filter((s) => s !== srv));
-                                  } else {
-                                    setSelectedServices([...selectedServices, srv]);
-                                  }
-                                }}
-                                className={`text-xs px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#321B35] text-white border-[#321B35]'
-                                    : 'bg-[#f8f9fa] text-[#1e1e1e]/70 border-[#e2e4e8] hover:border-[#321B35]'
-                                }`}
-                              >
-                                {isSelected ? '✓ ' : '+ '}
-                                {srv}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-2 ml-1">
-                          Preferred Decorative Textures & Finishes
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {availableTextures.map((tex) => {
-                            const isSelected = preferredTextures.includes(tex);
-                            return (
-                              <button
-                                type="button"
-                                key={tex}
-                                onClick={() => {
-                                  if (isSelected) {
-                                    setPreferredTextures(preferredTextures.filter((t) => t !== tex));
-                                  } else {
-                                    setPreferredTextures([...preferredTextures, tex]);
-                                  }
-                                }}
-                                className={`text-xs px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
-                                  isSelected
-                                    ? 'bg-[#F2B632] text-[#321B35] font-medium border-[#F2B632]'
-                                    : 'bg-[#f8f9fa] text-[#1e1e1e]/70 border-[#e2e4e8] hover:border-[#F2B632]'
-                                }`}
-                              >
-                                {isSelected ? '★ ' : '○ '}
-                                {tex}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Step 3: Site Visit Appointment */}
-                  <div>
-                    <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight pb-3 mb-4 border-b border-[#e5e5e5]">
-                      3. Preferred Site Visit Schedule
-                    </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Visit Date (required)
-                        </label>
-                        <input
-                          type="date"
-                          value={preferredDate}
-                          onChange={(e) => setPreferredDate(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                          Preferred Time Window
-                        </label>
-                        <select
-                          value={preferredTime}
-                          onChange={(e) => setPreferredTime(e.target.value)}
-                          className="w-full px-4 py-2.5 rounded-full bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
-                        >
-                          <option>10:00 AM – 1:00 PM (Morning Slot)</option>
-                          <option>2:00 PM – 5:00 PM (Afternoon Slot)</option>
-                          <option>5:00 PM – 7:30 PM (Evening Slot)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="mt-4">
-                      <label className="block text-xs text-[#1e1e1e]/70 mb-1 ml-3">
-                        Additional Requirements / Notes
+                    {/* Additional Requirements (optional textarea) */}
+                    <div>
+                      <label className={labelClass}>
+                        Additional Requirements <span className="text-[#1e1e1e]/40 font-normal">(optional)</span>
                       </label>
                       <textarea
                         rows={3}
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        placeholder="Mention any specific lighting, plaster conditions, ceiling height, or color palette..."
-                        className="w-full px-4 py-2.5 rounded-2xl bg-[#f8f9fa] border border-[#e2e4e8] focus:outline-none focus:border-[#321B35] text-sm"
+                        value={requirements}
+                        onChange={(e) => setRequirements(e.target.value)}
+                        placeholder="Mention specific walls, ceiling height, timeline, or special requirements..."
+                        className="w-full px-4 py-3 bg-white border border-[#1e1e1e]/20 rounded-xl text-sm text-[#1e1e1e] focus:outline-none focus:border-[#321B35] transition-colors placeholder:text-[#1e1e1e]/40 resize-none"
                       />
                     </div>
                   </div>
 
-                  {/* CONTINUE Button matching Video Frame 49 & 50 */}
+                  {/* Section 3: Preferred Consultation */}
+                  <div className="space-y-4 pt-2">
+                    <div className="border-b border-[#1e1e1e]/10 pb-2">
+                      <h2 className="text-base font-semibold text-[#1e1e1e] tracking-tight">
+                        Preferred Consultation
+                      </h2>
+                      <p className="text-xs text-[#1e1e1e]/60 font-light mt-0.5">
+                        Choosing a preferred date is an appointment request and will be confirmed by our team.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Preferred Date */}
+                      <div>
+                        <label className={labelClass}>
+                          Preferred Date <span className="text-[#1e1e1e]/40 font-normal">(optional)</span>
+                        </label>
+                        <input
+                          type="date"
+                          min={todayString}
+                          value={preferredDate}
+                          onChange={(e) => setPreferredDate(e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+
+                      {/* Preferred Time Window */}
+                      <div>
+                        <label className={labelClass}>Preferred Time Window</label>
+                        <select
+                          value={preferredTime}
+                          onChange={(e) => setPreferredTime(e.target.value)}
+                          className={inputClass}
+                        >
+                          {TIME_WINDOWS.map((win) => (
+                            <option key={win} value={win}>
+                              {win}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Primary Action Button */}
                   <div className="pt-4">
                     <button
                       type="submit"
-                      className="w-full py-4 rounded-none sm:rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-sm font-semibold tracking-wider uppercase transition-all shadow-md cursor-pointer text-center"
+                      className="w-full py-4 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-sm font-medium tracking-wide transition-colors cursor-pointer shadow-sm text-center"
                     >
-                      CONTINUE TO REVIEW
+                      Review Enquiry
                     </button>
                   </div>
                 </form>
               ) : (
-                /* Review Request View */
+                /* Review Screen */
                 <div className="space-y-6">
-                  <div className="flex items-center justify-between pb-4 border-b border-[#e5e5e5]">
+                  <div className="border-b border-[#1e1e1e]/10 pb-4 flex items-center justify-between">
                     <div>
-                      <h2 className="text-xl font-serif text-[#321B35]">Review Quotation & Booking</h2>
-                      <p className="text-xs text-[#1e1e1e]/60">Please review your project details before confirming.</p>
+                      <h2 className="text-xl font-serif text-[#321B35]">
+                        Review Your Project Enquiry
+                      </h2>
+                      <p className="text-xs text-[#1e1e1e]/60 font-light mt-0.5">
+                        Please verify your details before submitting your enquiry.
+                      </p>
                     </div>
+
                     <button
                       type="button"
                       onClick={() => setStage('form')}
-                      className="inline-flex items-center gap-1.5 text-xs text-[#321B35] border border-[#321B35]/20 hover:border-[#321B35] px-3 py-1.5 rounded-full font-medium"
+                      className="text-xs text-[#321B35] hover:underline underline-offset-2 cursor-pointer font-medium"
                     >
-                      <Edit3 className="w-3 h-3" /> Edit Details
+                      Edit details
                     </button>
                   </div>
 
                   {/* Summary Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="p-4 bg-[#f8f9fa] rounded-2xl border border-[#e2e4e8] space-y-2">
-                      <span className="font-semibold text-[#321B35] flex items-center gap-1">
-                        <Phone className="w-3.5 h-3.5" /> Client Info
+                    {/* Contact Details */}
+                    <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 space-y-1.5">
+                      <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider">
+                        Contact Details
                       </span>
-                      <p className="text-sm font-medium">{firstName} {lastName}</p>
-                      <p className="text-[#1e1e1e]/70">{phone}</p>
-                      <p className="text-[#1e1e1e]/70">{email}</p>
+                      <p className="text-sm font-medium text-[#1e1e1e]">{fullName}</p>
+                      <p className="text-[#1e1e1e]/75">{phone}</p>
+                      {email && <p className="text-[#1e1e1e]/75">{email}</p>}
                     </div>
 
-                    <div className="p-4 bg-[#f8f9fa] rounded-2xl border border-[#e2e4e8] space-y-2">
-                      <span className="font-semibold text-[#321B35] flex items-center gap-1">
-                        <MapPin className="w-3.5 h-3.5" /> Site Location
+                    {/* Site Details */}
+                    <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 space-y-1.5">
+                      <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider">
+                        Property & Area
                       </span>
-                      <p className="text-sm font-medium">{propertyAddress}</p>
-                      <p className="text-[#1e1e1e]/70">{propertyType} • {approxArea}</p>
-                    </div>
-
-                    <div className="p-4 bg-[#f8f9fa] rounded-2xl border border-[#e2e4e8] space-y-2">
-                      <span className="font-semibold text-[#321B35] flex items-center gap-1">
-                        <Calendar className="w-3.5 h-3.5" /> Site Visit Schedule
-                      </span>
-                      <p className="text-sm font-medium">{preferredDate}</p>
-                      <p className="text-[#1e1e1e]/70">{preferredTime}</p>
-                    </div>
-
-                    <div className="p-4 bg-[#f8f9fa] rounded-2xl border border-[#e2e4e8] space-y-2">
-                      <span className="font-semibold text-[#321B35] flex items-center gap-1">
-                        <Sparkles className="w-3.5 h-3.5 text-[#F2B632]" /> Selected Finishes
-                      </span>
-                      <p className="text-[#1e1e1e]/80 leading-snug">
-                        {selectedServices.join(', ') || 'General Painting'}
+                      <p className="text-sm font-medium text-[#1e1e1e]">{propertyAddress}</p>
+                      <p className="text-[#1e1e1e]/75">
+                        {propertyType}
+                        {approxArea ? ` • ~${approxArea} sq. ft.` : ''}
                       </p>
-                      <div className="pt-1 flex flex-wrap gap-1">
-                        {preferredTextures.map((t) => (
-                          <span key={t} className="bg-[#F2B632]/20 text-[#321B35] text-[10px] px-2 py-0.5 rounded-full">
-                            {t}
-                          </span>
-                        ))}
-                      </div>
+                    </div>
+
+                    {/* Services */}
+                    <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 space-y-1.5">
+                      <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider">
+                        Services Requested
+                      </span>
+                      <p className="text-sm text-[#1e1e1e]/85">
+                        {selectedServices.length > 0
+                          ? selectedServices.join(', ')
+                          : 'General Painting Consultation'}
+                      </p>
+                    </div>
+
+                    {/* Consultation Window */}
+                    <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 space-y-1.5">
+                      <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider">
+                        Preferred Schedule
+                      </span>
+                      <p className="text-sm font-medium text-[#1e1e1e]">
+                        {preferredDate || 'Flexible / To be discussed'}
+                      </p>
+                      <p className="text-[#1e1e1e]/75">{preferredTime}</p>
                     </div>
                   </div>
 
-                  {notes && (
-                    <div className="p-3 bg-[#f8f9fa] rounded-xl border border-[#e2e4e8] text-xs text-[#1e1e1e]/75">
-                      <strong className="text-[#321B35]">Special Notes: </strong>
-                      {notes}
+                  {requirements && (
+                    <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 text-xs">
+                      <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider mb-1">
+                        Additional Requirements
+                      </span>
+                      <p className="text-[#1e1e1e]/80 leading-relaxed">{requirements}</p>
                     </div>
                   )}
 
-                  <div className="pt-4 flex flex-col sm:flex-row gap-3">
+                  {/* Selections Recap */}
+                  <div className="p-4 bg-[#E9EDF0]/40 rounded-xl border border-[#1e1e1e]/10 space-y-2 text-xs">
+                    <span className="font-semibold text-[#321B35] block text-[11px] uppercase tracking-wider">
+                      Selected Finishes & Colours
+                    </span>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      {uniqueTextures.map((t) => (
+                        <span
+                          key={t.product.id}
+                          className="bg-white border border-[#1e1e1e]/15 px-2.5 py-1 rounded-md text-[11px] text-[#1e1e1e]"
+                        >
+                          {t.product.name}
+                        </span>
+                      ))}
+                      {selectedColours.map((c) => (
+                        <span
+                          key={c.id}
+                          className="bg-white border border-[#1e1e1e]/15 px-2.5 py-1 rounded-md text-[11px] text-[#1e1e1e] flex items-center gap-1.5"
+                        >
+                          <span
+                            className="w-2.5 h-2.5 rounded-full border border-black/15 inline-block"
+                            style={{ backgroundColor: c.hex }}
+                          />
+                          {c.name}
+                        </span>
+                      ))}
+                      {uniqueTextures.length === 0 && selectedColours.length === 0 && (
+                        <span className="text-[#1e1e1e]/50 italic">None selected</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="pt-2 flex flex-col-reverse sm:flex-row gap-3">
                     <button
                       type="button"
                       onClick={() => setStage('form')}
-                      className="py-3 px-6 rounded-full border border-[#1e1e1e]/20 text-xs font-medium hover:bg-black/5"
+                      className="py-3.5 px-6 rounded-full border border-[#1e1e1e]/20 text-[#1e1e1e] hover:bg-black/5 text-xs sm:text-sm font-medium transition-colors text-center cursor-pointer"
                     >
-                      ← Back to Edit
+                      Back to Edit
                     </button>
                     <button
                       type="button"
-                      onClick={handleFinalSubmit}
-                      className="flex-1 py-3.5 rounded-full bg-[#321B35] text-white text-sm font-semibold tracking-wide hover:bg-[#432347] transition-all shadow-md cursor-pointer"
+                      onClick={handleSubmitEnquiry}
+                      className="flex-1 py-3.5 px-8 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-xs sm:text-sm font-medium tracking-wide transition-colors cursor-pointer shadow-sm text-center"
                     >
-                      Confirm Painting Project Booking
+                      Submit Enquiry
                     </button>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Right Column: Order Summary Card matching Video Frame 49 & 50 */}
-            <div className="lg:col-span-5 bg-white p-6 sm:p-8 rounded-2xl border border-[#e5e5e5] shadow-xs space-y-6">
-              <h3 className="font-sans text-xl font-medium text-[#1e1e1e]">
-                Order summary
-              </h3>
+            {/* Right Column: Simplified Selection Summary (~35%) */}
+            <div className="lg:col-span-4 bg-white p-6 rounded-2xl border border-[#321B35]/15 shadow-2xs space-y-6 lg:sticky lg:top-24">
+              <div className="border-b border-[#1e1e1e]/10 pb-3">
+                <h3 className="font-serif text-xl text-[#321B35] font-normal">
+                  Your Selections
+                </h3>
+                <p className="text-xs text-[#1e1e1e]/60 font-light mt-0.5">
+                  Finishes and colours selected for your project discussion.
+                </p>
+              </div>
 
-              {/* Items List */}
-              <div className="divide-y divide-[#f0f0f0]">
-                {items.length === 0 ? (
-                  <div className="py-4 text-xs text-[#1e1e1e]/60">
-                    No sample kits in cart. (Proceeding with site inspection booking)
-                  </div>
+              {/* Group 1: Selected Textures */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-semibold text-[#1e1e1e]/70 uppercase tracking-wider">
+                  Selected Textures ({uniqueTextures.length})
+                </h4>
+
+                {uniqueTextures.length === 0 ? (
+                  <p className="text-xs text-[#1e1e1e]/50 italic py-1">
+                    No textures selected from catalogue.
+                  </p>
                 ) : (
-                  items.map(({ product, quantity }) => (
-                    <div key={product.id} className="py-4 flex items-center justify-between gap-4">
-                      {/* Thumbnail with square quantity badge on bottom right matching Frame 49 */}
-                      <div className="relative w-16 h-16 bg-black/5 rounded-md overflow-hidden shrink-0">
-                        <img
-                          src={product.image}
-                          alt={product.name}
-                          className="w-full h-full object-cover"
-                        />
-                        <span className="absolute bottom-0 right-0 bg-[#6b7280] text-white text-[10px] font-medium px-1.5 py-0.5 rounded-tl-sm">
-                          {quantity}
-                        </span>
-                      </div>
+                  <div className="divide-y divide-[#1e1e1e]/5">
+                    {uniqueTextures.map(({ product }) => (
+                      <div
+                        key={product.id}
+                        className="py-2.5 flex items-center justify-between gap-3"
+                      >
+                        <div className="w-12 h-12 rounded-lg overflow-hidden shrink-0 bg-[#1e1e1e]/5 border border-[#1e1e1e]/10">
+                          <img
+                            src={product.image}
+                            alt={product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
 
-                      {/* Product Name & Remove link */}
-                      <div className="flex-1 min-w-0">
-                        <h4 className="text-sm font-normal text-[#1e1e1e] truncate">
-                          {product.name}
-                        </h4>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-xs sm:text-sm font-medium text-[#1e1e1e] truncate">
+                            {product.name}
+                          </h5>
+                        </div>
+
                         <button
                           type="button"
                           onClick={() => onRemoveItem(product.id)}
-                          className="text-xs text-[#6b7280] hover:text-[#1e1e1e] underline cursor-pointer mt-0.5 block"
+                          className="text-xs text-[#1e1e1e]/50 hover:text-red-600 transition-colors cursor-pointer shrink-0 ml-1"
+                          aria-label={`Remove ${product.name}`}
                         >
                           Remove
                         </button>
                       </div>
-
-                      {/* Price & Per unit info matching Frame 49 */}
-                      <div className="text-right">
-                        <span className="text-sm font-light text-[#1e1e1e] block">
-                          ₹{(product.price * quantity).toFixed(2)}
-                        </span>
-                        {quantity > 1 && (
-                          <span className="text-[11px] text-[#6b7280] block">
-                            ₹{product.price.toFixed(2)} each
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
 
-              {/* + Discount or gift card Pill Button matching Frame 49 */}
-              <div>
-                {!showDiscountInput ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowDiscountInput(true)}
-                    className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full border border-[#d1d5db] text-xs font-normal text-[#1e1e1e] hover:border-[#1e1e1e] transition-colors cursor-pointer bg-white"
-                  >
-                    <span>+ Discount or gift card</span>
-                  </button>
+              {/* Group 2: Selected Colours */}
+              <div className="space-y-3 pt-2 border-t border-[#1e1e1e]/10">
+                <h4 className="text-xs font-semibold text-[#1e1e1e]/70 uppercase tracking-wider">
+                  Selected Colours ({selectedColours.length})
+                </h4>
+
+                {selectedColours.length === 0 ? (
+                  <p className="text-xs text-[#1e1e1e]/50 italic py-1">
+                    No colours selected.
+                  </p>
                 ) : (
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={discountCode}
-                      onChange={(e) => setDiscountCode(e.target.value)}
-                      placeholder="Enter COLOUR20"
-                      className="flex-1 px-4 py-1.5 rounded-full border border-[#d1d5db] text-xs bg-white focus:outline-none focus:border-[#321B35]"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleApplyDiscount}
-                      className="px-4 py-1.5 rounded-full bg-[#1e1e1e] text-white text-xs font-medium cursor-pointer"
-                    >
-                      Apply
-                    </button>
+                  <div className="divide-y divide-[#1e1e1e]/5">
+                    {selectedColours.map((colour) => (
+                      <div
+                        key={colour.id}
+                        className="py-2.5 flex items-center justify-between gap-3"
+                      >
+                        <div
+                          className="w-7 h-7 rounded-full shrink-0 border border-black/15 shadow-2xs"
+                          style={{ backgroundColor: colour.hex }}
+                          aria-hidden="true"
+                        />
+
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-xs sm:text-sm font-medium text-[#1e1e1e] truncate">
+                            {colour.name}
+                          </h5>
+                          <span className="text-[11px] font-mono text-[#1e1e1e]/50 uppercase">
+                            {colour.hex}
+                          </span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveColour(colour.id)}
+                          className="text-xs text-[#1e1e1e]/50 hover:text-red-600 transition-colors cursor-pointer shrink-0 ml-1"
+                          aria-label={`Remove ${colour.name}`}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
                   </div>
                 )}
-                {discountApplied && (
-                  <p className="text-[11px] text-emerald-700 mt-1.5 flex items-center gap-1">
-                    <CheckCircle2 className="w-3 h-3" /> Voucher COLOUR20 applied!
-                  </p>
-                )}
-                {discountError && (
-                  <p className="text-[11px] text-red-600 mt-1.5">
-                    {discountError}
-                  </p>
-                )}
               </div>
 
-              {/* Price Breakdown matching Frame 49 */}
-              <div className="pt-4 border-t border-[#f0f0f0] space-y-2 text-sm">
-                <div className="flex justify-between text-[#1e1e1e]">
-                  <span>Subtotal</span>
-                  <span className="font-light">₹{subtotal.toFixed(2)}</span>
-                </div>
-                {discountApplied && (
-                  <div className="flex justify-between text-emerald-700">
-                    <span>Discount</span>
-                    <span>-₹{discountAmount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-[#1e1e1e]">
-                  <span>Tax</span>
-                  <span className="font-light">₹0.00</span>
-                </div>
-              </div>
-
-              {/* Total Row */}
-              <div className="pt-4 border-t border-[#f0f0f0] flex justify-between items-center text-base sm:text-lg font-medium text-[#1e1e1e]">
-                <span>Total</span>
-                <span>₹{total.toFixed(2)}</span>
-              </div>
-
-              {/* SECURE SSL CHECKOUT matching Frame 49 & 50 */}
-              <div className="pt-6 border-t border-[#f0f0f0] flex items-center justify-center gap-2 text-[11px] tracking-wider text-[#6b7280] font-semibold uppercase">
-                <ShieldCheck className="w-4 h-4 text-[#1e1e1e]" />
-                <span>SECURE SSL CHECKOUT</span>
+              {/* Bottom Clarification */}
+              <div className="pt-4 border-t border-[#1e1e1e]/10">
+                <p className="text-xs text-[#1e1e1e]/70 leading-relaxed font-light">
+                  Pricing will be discussed based on your project requirements.
+                </p>
               </div>
             </div>
           </div>

@@ -80,7 +80,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onNavigate('shop')}
             className={navClass('shop')}
           >
-            Shop
+            Textures & Colours
           </button>
           <button
             onClick={() => onNavigate('about')}
@@ -98,8 +98,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={() => onNavigate('cart')}
             className={`${navClass('cart')} flex items-center gap-1.5`}
           >
-            <span>Cart</span>
-            {cartCount > 0 && <span>({cartCount})</span>}
+            <span>My Selection</span>
           </button>
 
           {/* User Sign In / Profile status */}
@@ -139,7 +138,7 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             onClick={() => onNavigate('cart')}
             className={`relative p-1.5 ${isDarkHero ? 'text-white' : 'text-[#321B35]'}`}
-            aria-label="View Cart"
+            aria-label="View My Selection"
           >
             <ShoppingBag className="w-5 h-5" />
             {cartCount > 0 && (
@@ -187,7 +186,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="text-left py-2 text-[#321B35] font-serif text-lg border-b border-[#321B35]/10"
             >
-              Shop & Textures
+              Textures & Colours
             </button>
             <button
               onClick={() => {
@@ -214,7 +213,7 @@ export const Header: React.FC<HeaderProps> = ({
               }}
               className="text-left py-2 text-[#321B35] font-serif text-lg flex items-center justify-between border-b border-[#321B35]/10"
             >
-              <span>Cart</span>
+              <span>My Selection</span>
               <span className="bg-[#321B35] text-white text-xs px-2.5 py-0.5 rounded-full">
                 {cartCount}
               </span>

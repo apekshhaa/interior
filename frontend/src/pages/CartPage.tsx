@@ -71,7 +71,7 @@ export const CartPage: React.FC<CartPageProps> = ({
                         {product.name}
                       </h3>
                       <p className="text-xs text-[#1e1e1e]/60 mt-0.5">
-                        ₹{product.price.toFixed(2)} each
+                        {product.price > 0 ? `₹${product.price.toFixed(2)} each` : 'Quotation on request'}
                       </p>
                     </div>
                   </div>
@@ -98,8 +98,8 @@ export const CartPage: React.FC<CartPageProps> = ({
                     </div>
 
                     {/* Total item price */}
-                    <span className="font-sans text-base sm:text-lg font-light text-[#1e1e1e] min-w-[80px] text-right">
-                      ₹{(product.price * quantity).toFixed(2)}
+                    <span className="font-sans text-sm sm:text-base font-light text-[#1e1e1e] min-w-[80px] text-right">
+                      {product.price > 0 ? `₹${(product.price * quantity).toFixed(2)}` : 'Quotation on request'}
                     </span>
 
                     {/* Remove ✕ icon matching Video Frame 47 */}
@@ -118,9 +118,9 @@ export const CartPage: React.FC<CartPageProps> = ({
             {/* Subtotal & Checkout Section matching Video Frame 47 */}
             <div className="pt-8 border-t border-[#321B35]/20 flex flex-col items-end space-y-4">
               <div className="flex items-center gap-12 text-lg">
-                <span className="text-sm text-[#1e1e1e]/80">Subtotal</span>
-                <span className="text-2xl font-light text-[#1e1e1e]">
-                  ₹{subtotal.toFixed(2)}
+                <span className="text-sm text-[#1e1e1e]/80">Estimated Cost</span>
+                <span className="text-xl sm:text-2xl font-light text-[#321B35]">
+                  {subtotal > 0 ? `₹${subtotal.toFixed(2)}` : 'Quotation on request'}
                 </span>
               </div>
 

@@ -146,7 +146,11 @@ export default function App() {
         )}
 
         {currentPage === 'shop' && (
-          <ShopPage onSelectProduct={handleSelectProduct} />
+          <ShopPage
+            onSelectProduct={handleSelectProduct}
+            onAddToCart={handleAddToCart}
+            onNavigate={handleNavigate}
+          />
         )}
 
         {currentPage === 'product-detail' && (
@@ -205,6 +209,11 @@ export default function App() {
               showToast('You have been signed out.');
             }}
             onNavigate={handleNavigate}
+            cartItems={cartItems}
+            onUpdateUser={(u) => {
+              setCurrentUser(u);
+              showToast('Profile updated.');
+            }}
           />
         )}
       </main>

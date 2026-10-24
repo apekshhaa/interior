@@ -57,8 +57,8 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
       <section className="max-w-7xl mx-auto px-6 sm:px-10 lg:px-16 pt-8 pb-12">
         <div className="w-full aspect-[16/9] sm:aspect-[21/9] overflow-hidden bg-black/5">
           <img
-            src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=1800&q=80"
-            alt="COLOUR TONE Architectural Wall Finishes Team"
+            src="/assets/services-banner.png"
+            alt="COLOUR TONE Decorative Textured Plaster Wall & Interior Finishes"
             className="w-full h-full object-cover object-center"
           />
         </div>
@@ -76,7 +76,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
           </div>
           <div className="lg:col-span-5">
             <p className="text-sm sm:text-base text-[#1e1e1e]/80 leading-relaxed font-light">
-              We blend 20 years of artisan mastery with cutting-edge textures, Italian plasters, and premium pigments to create walls that captivate, endure coastal weather, and express your individuality.
+              With 20 years of experience, we bring walls to life through decorative textures, refined plaster finishes, and professional painting tailored to your space.
             </p>
           </div>
         </div>
@@ -122,11 +122,8 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
             {/* Price & Booking Action */}
             <div className="md:col-span-3 flex md:flex-col items-center md:items-end justify-between gap-3">
               <div className="md:text-right">
-                <span className="text-xl sm:text-2xl font-light text-[#1e1e1e]">
-                  ₹{srv.price.toFixed(2)}
-                </span>
-                <span className="block text-[11px] text-[#1e1e1e]/60">
-                  {srv.unit}
+                <span className="text-base sm:text-lg font-light text-[#1e1e1e]">
+                  Quotation on request
                 </span>
               </div>
 

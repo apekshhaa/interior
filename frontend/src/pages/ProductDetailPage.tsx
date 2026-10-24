@@ -27,51 +27,41 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
   return (
     <div className="w-full bg-[#E9EDF0] text-[#1e1e1e] py-8 sm:py-12 px-6 sm:px-10 lg:px-16 min-h-screen">
       <div className="max-w-7xl mx-auto">
-        {/* Breadcrumb matching Video Frame 35 ("Shop › [Title]") */}
-        <div className="mb-10 text-xs sm:text-sm text-[#1e1e1e]/60 font-light flex items-center gap-2">
-          <button
-            onClick={() => onNavigate('shop')}
-            className="hover:text-[#321B35] underline underline-offset-2 transition-colors cursor-pointer"
-          >
-            Shop
-          </button>
-          <span>›</span>
-          <span className="text-[#1e1e1e] font-normal">{product.name}</span>
-        </div>
-
-        {/* 2-Column Product Detail Layout matching Video Frame 35 */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
-          {/* Left Column: Product Image */}
-          <div className="lg:col-span-7 aspect-[4/3] bg-black/5 overflow-hidden shadow-sm">
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-full object-cover object-center"
-            />
+          {/* Breadcrumb */}
+          <div className="mb-10 text-xs sm:text-sm text-[#1e1e1e]/60 font-light flex items-center gap-2">
+            <button
+              onClick={() => onNavigate('shop')}
+              className="hover:text-[#321B35] underline underline-offset-2 transition-colors cursor-pointer"
+            >
+              Textures & Colours
+            </button>
+            <span>›</span>
+            <span className="text-[#1e1e1e] font-normal">{product.name}</span>
           </div>
 
-          {/* Right Column: Information, Price, Quantity & Add To Cart */}
-          <div className="lg:col-span-5 space-y-6 lg:pt-4">
-            <div>
-              <h1 className="font-serif text-4xl sm:text-5xl text-[#1e1e1e] font-normal tracking-tight leading-[1.12]">
-                {product.name}
-              </h1>
-              <div className="mt-3 flex items-center gap-3">
-                <span className="text-2xl font-light text-[#1e1e1e]">
-                  ₹{product.price.toFixed(2)}
-                </span>
-                {product.originalPrice && (
-                  <span className="text-base text-[#1e1e1e]/40 line-through">
-                    ₹{product.originalPrice.toFixed(2)}
-                  </span>
-                )}
-                {product.isSale && (
-                  <span className="text-xs bg-[#F2B632]/20 text-[#321B35] px-2 py-0.5 rounded-full font-medium">
-                    Special Offer
-                  </span>
-                )}
-              </div>
+          {/* 2-Column Product Detail Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-start">
+            {/* Left Column: Product Image */}
+            <div className="lg:col-span-7 aspect-[4/3] bg-black/5 overflow-hidden shadow-sm rounded-2xl">
+              <img
+                src={product.image}
+                alt={product.name}
+                className="w-full h-full object-cover object-center"
+              />
             </div>
+
+            {/* Right Column: Information, Price, & Selection */}
+            <div className="lg:col-span-5 space-y-6 lg:pt-4">
+              <div>
+                <h1 className="font-serif text-4xl sm:text-5xl text-[#1e1e1e] font-normal tracking-tight leading-[1.12]">
+                  {product.name}
+                </h1>
+                <div className="mt-3 flex items-center gap-3">
+                  <span className="text-xl sm:text-2xl font-light text-[#321B35] bg-[#321B35]/5 px-4 py-1.5 rounded-full inline-block">
+                    {product.price > 0 ? `₹${product.price.toFixed(2)}` : 'Quotation on request'}
+                  </span>
+                </div>
+              </div>
 
             {/* Description */}
             <p className="text-sm sm:text-base text-[#1e1e1e]/80 leading-relaxed font-light">
@@ -121,7 +111,7 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 </button>
               </div>
 
-              {/* Add To Cart Pill Button */}
+              {/* Add To Selection Pill Button */}
               <button
                 type="button"
                 onClick={handleAdd}
@@ -130,10 +120,10 @@ export const ProductDetailPage: React.FC<ProductDetailPageProps> = ({
                 {added ? (
                   <>
                     <Check className="w-4 h-4 text-[#F2B632]" />
-                    <span>Added To Cart!</span>
+                    <span>Added To Selection!</span>
                   </>
                 ) : (
-                  <span>Add To Cart</span>
+                  <span>Add To Selection</span>
                 )}
               </button>
             </div>

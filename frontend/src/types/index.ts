@@ -48,6 +48,7 @@ export interface User {
   name: string;
   email: string;
   phone: string;
+  location?: string;
 }
 
 export type PageType = 'home' | 'services' | 'shop' | 'product-detail' | 'about' | 'contact' | 'cart' | 'checkout' | 'confirmation' | 'auth';
