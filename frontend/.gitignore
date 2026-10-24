@@ -6,3 +6,15 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Large media and archive files
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.iso
+*.psd
