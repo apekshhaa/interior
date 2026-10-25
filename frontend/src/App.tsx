@@ -10,6 +10,7 @@ import { Footer } from './components/Footer';
 import { AuthModal } from './components/AuthModal';
 import { HomePage } from './pages/HomePage';
 import { ServicesPage } from './pages/ServicesPage';
+import { GalleryPage } from './pages/GalleryPage';
 import { ShopPage } from './pages/ShopPage';
 import { ProductDetailPage } from './pages/ProductDetailPage';
 import { AboutPage } from './pages/AboutPage';
@@ -143,6 +144,10 @@ export default function App() {
             onAddToCart={handleAddToCart}
             onBookService={handleBookService}
           />
+        )}
+
+        {currentPage === 'gallery' && (
+          <GalleryPage onNavigate={handleNavigate} />
         )}
 
         {currentPage === 'shop' && (

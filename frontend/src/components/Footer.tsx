@@ -54,6 +54,9 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
             <button onClick={() => onNavigate('services')} className="hover:underline cursor-pointer">
               Services
             </button>
+            <button onClick={() => onNavigate('gallery')} className="hover:underline cursor-pointer">
+              Our Work
+            </button>
             <button onClick={() => onNavigate('shop')} className="hover:underline cursor-pointer">
               Textures &amp; Colours
             </button>

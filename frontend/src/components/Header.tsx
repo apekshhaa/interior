@@ -77,6 +77,12 @@ export const Header: React.FC<HeaderProps> = ({
             Services
           </button>
           <button
+            onClick={() => onNavigate('gallery')}
+            className={navClass('gallery')}
+          >
+            Our Work
+          </button>
+          <button
             onClick={() => onNavigate('shop')}
             className={navClass('shop')}
           >
@@ -178,6 +184,15 @@ export const Header: React.FC<HeaderProps> = ({
               className="text-left py-2 text-[#321B35] font-serif text-lg border-b border-[#321B35]/10"
             >
               Services
+            </button>
+            <button
+              onClick={() => {
+                onNavigate('gallery');
+                setMobileMenuOpen(false);
+              }}
+              className="text-left py-2 text-[#321B35] font-serif text-lg border-b border-[#321B35]/10"
+            >
+              Our Work
             </button>
             <button
               onClick={() => {

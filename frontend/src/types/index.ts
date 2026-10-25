@@ -51,4 +51,4 @@ export interface User {
   location?: string;
 }
 
-export type PageType = 'home' | 'services' | 'shop' | 'product-detail' | 'about' | 'contact' | 'cart' | 'checkout' | 'confirmation' | 'auth';
+export type PageType = 'home' | 'services' | 'gallery' | 'shop' | 'product-detail' | 'about' | 'contact' | 'cart' | 'checkout' | 'confirmation' | 'auth';
