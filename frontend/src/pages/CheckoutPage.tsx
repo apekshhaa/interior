@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { CartItem, BookingDetails, User } from '../types';
 import { COLOUR_PALETTE, ColourSwatch } from '../data/colours';
 import { ArrowLeft, Check, Phone, MessageSquare, AlertCircle } from 'lucide-react';
+import { buildSmsUrl, buildWhatsAppUrl } from '../lib/whatsapp';
 
 interface CheckoutPageProps {
   items: CartItem[];
@@ -10,6 +11,8 @@ interface CheckoutPageProps {
   onBookingConfirmed: (details: BookingDetails, refId: string) => void;
   onBackToCart: () => void;
   defaultServiceName?: string;
+  initialDetails?: Partial<BookingDetails>;
+  onCreateBooking: (details: BookingDetails) => Promise<{ booking: { reference: string } }>;
 }
 
 const AVAILABLE_SERVICES = [
@@ -33,20 +36,29 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   onBookingConfirmed,
   onBackToCart,
   defaultServiceName,
+  initialDetails = {},
+  onCreateBooking,
 }) => {
   // Navigation stage: 'form' | 'review' | 'submitted'
   const [stage, setStage] = useState<'form' | 'review' | 'submitted'>('form');
 
   // Section 1: Contact Details (no hardcoded fake customer data)
-  const [fullName, setFullName] = useState(currentUser?.name || '');
-  const [phone, setPhone] = useState(currentUser?.phone || '');
-  const [email, setEmail] = useState(currentUser?.email || '');
+  const [fullName, setFullName] = useState(
+    initialDetails.firstName || initialDetails.lastName
+      ? [initialDetails.firstName, initialDetails.lastName].filter(Boolean).join(' ')
+      : currentUser?.name || '',
+  );
+  const [phone, setPhone] = useState(initialDetails.phone || currentUser?.phone || '');
+  const [email, setEmail] = useState(initialDetails.email || currentUser?.email || '');
 
   // Section 2: Project Details
   const [propertyType, setPropertyType] = useState<'Residential' | 'Commercial'>('Residential');
-  const [propertyAddress, setPropertyAddress] = useState('');
-  const [approxArea, setApproxArea] = useState('');
+  const [propertyAddress, setPropertyAddress] = useState(initialDetails.propertyAddress || '');
+  const [approxArea, setApproxArea] = useState(initialDetails.approxArea || '');
   const [selectedServices, setSelectedServices] = useState<string[]>(() => {
+    if (initialDetails.selectedServices && initialDetails.selectedServices.length > 0) {
+      return initialDetails.selectedServices;
+    }
     if (!defaultServiceName) return ['Interior Painting'];
     const lower = defaultServiceName.toLowerCase();
     if (lower.includes('exterior')) return ['Exterior Painting'];
@@ -56,15 +68,22 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     }
     return ['Interior Painting'];
   });
-  const [requirements, setRequirements] = useState('');
+  const [requirements, setRequirements] = useState(initialDetails.notes || '');
 
   // Section 3: Preferred Consultation
   const todayString = useMemo(() => new Date().toISOString().split('T')[0], []);
-  const [preferredDate, setPreferredDate] = useState('');
-  const [preferredTime, setPreferredTime] = useState(TIME_WINDOWS[0]);
+  const [preferredDate, setPreferredDate] = useState(initialDetails.preferredDate || '');
+  const [preferredTime, setPreferredTime] = useState(initialDetails.preferredTime || TIME_WINDOWS[0]);
 
   // Validation errors
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [submitError, setSubmitError] = useState('');
+  const [bookingReference, setBookingReference] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const fullNameRef = useRef<HTMLInputElement>(null);
+  const phoneRef = useRef<HTMLInputElement>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  const propertyAddressRef = useRef<HTMLInputElement>(null);
 
   // Right-side Selected Colours state
   const [selectedColours, setSelectedColours] = useState<ColourSwatch[]>(() => {
@@ -73,7 +92,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       if (saved) {
         const ids: string[] = JSON.parse(saved);
         const matched = COLOUR_PALETTE.filter((c) => ids.includes(c.id));
-        if (matched.length > 0) return matched;
+        if (Array.isArray(ids)) return matched;
       }
     } catch {
       // Fallback
@@ -121,10 +140,18 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     } else if (phone.trim().length < 8) {
       errs.phone = 'Please enter a valid phone number.';
     }
+    if (email.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errs.email = 'Please enter a valid email address.';
+    }
     if (!propertyAddress.trim()) {
       errs.propertyAddress = 'Property Address is required.';
     }
     setErrors(errs);
+    const firstInvalidField = Object.keys(errs)[0];
+    if (firstInvalidField === 'fullName') fullNameRef.current?.focus();
+    if (firstInvalidField === 'phone') phoneRef.current?.focus();
+    if (firstInvalidField === 'email') emailRef.current?.focus();
+    if (firstInvalidField === 'propertyAddress') propertyAddressRef.current?.focus();
     return Object.keys(errs).length === 0;
   };
 
@@ -136,10 +163,15 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     }
   };
 
-  const handleSubmitEnquiry = () => {
+  const handleSubmitEnquiry = async () => {
+    if (isSubmitting) return;
+    if (!currentUser) {
+      setSubmitError('Please sign in before submitting a booking request.');
+      return;
+    }
     const nameParts = fullName.trim().split(' ');
     const firstName = nameParts[0] || fullName.trim();
-    const lastName = nameParts.slice(1).join(' ');
+    const lastName = nameParts.slice(1).join(' ') || 'Customer';
 
     const bookingData: BookingDetails = {
       firstName,
@@ -151,33 +183,37 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       approxArea: approxArea.trim(),
       selectedServices,
       preferredTextures: uniqueTextures.map((t) => t.product.name),
+      selectedColours: selectedColours.map((colour) => `${colour.name} (${colour.hex})`),
       preferredDate,
       preferredTime,
       notes: requirements.trim(),
     };
 
-    // Save genuine submitted enquiry record to localStorage
+    setSubmitError('');
+    setIsSubmitting(true);
     try {
-      localStorage.setItem(
-        'colourtone_last_enquiry',
-        JSON.stringify({
-          date: new Date().toLocaleDateString('en-IN', {
-            month: 'short',
-            day: 'numeric',
-            year: 'numeric',
+      const { booking } = await onCreateBooking(bookingData);
+      try {
+        localStorage.setItem(
+          'colourtone_last_enquiry',
+          JSON.stringify({
+            date: new Date().toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' }),
+            address: propertyAddress.trim(),
+            services: selectedServices,
           }),
-          address: propertyAddress.trim(),
-          services: selectedServices,
-        })
-      );
-    } catch {
-      // ignore
+        );
+      } catch {
+        // Local history is optional; the server record is authoritative.
+      }
+      setBookingReference(booking.reference);
+      onBookingConfirmed(bookingData, booking.reference);
+      setStage('submitted');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Unable to submit your booking request.');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Forward to parent callback if provided
-    onBookingConfirmed(bookingData, '');
-    setStage('submitted');
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const inputClass =
@@ -190,10 +226,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
     const parts = [
       `Hello COLOUR TONE, I would like to enquire about a painting project.`,
       `Name: ${fullName}`,
-      `Phone: ${phone}`,
-      email ? `Email: ${email}` : '',
-      `Property: ${propertyAddress} (${propertyType})`,
-      approxArea ? `Approx Area: ${approxArea} sq. ft.` : '',
+      bookingReference ? `Booking Reference: ${bookingReference}` : '',
+      `Property Type: ${propertyType}`,
       selectedServices.length > 0 ? `Services Required: ${selectedServices.join(', ')}` : '',
       preferredDate ? `Preferred Consultation Date: ${preferredDate} (${preferredTime})` : '',
       uniqueTextures.length > 0
@@ -202,25 +236,38 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       selectedColours.length > 0
         ? `Selected Colours: ${selectedColours.map((c) => `${c.name} (${c.hex})`).join(', ')}`
         : '',
-      requirements ? `Additional Requirements: ${requirements}` : '',
+      `Please help me arrange a consultation. I will review this message and press Send in WhatsApp.`,
     ]
       .filter(Boolean)
       .join('\n');
-    return encodeURIComponent(parts);
+    return parts;
   }, [
     fullName,
-    phone,
-    email,
-    propertyAddress,
     propertyType,
-    approxArea,
     selectedServices,
     preferredDate,
     preferredTime,
     uniqueTextures,
     selectedColours,
-    requirements,
+    bookingReference,
   ]);
+  const whatsappUrl = buildWhatsAppUrl(whatsappMessage);
+  const smsMessage = useMemo(() => [
+    `COLOUR TONE enquiry`,
+    `Name: ${fullName}`,
+    bookingReference ? `Ref: ${bookingReference}` : '',
+    selectedServices.length > 0 ? `Service: ${selectedServices.join(', ')}` : '',
+    selectedColours.length > 0 ? `Colours: ${selectedColours.map((c) => c.name).join(', ')}` : '',
+    preferredDate ? `Consultation: ${preferredDate} (${preferredTime})` : '',
+  ].filter(Boolean).join('\n'), [
+    fullName,
+    bookingReference,
+    selectedServices,
+    selectedColours,
+    preferredDate,
+    preferredTime,
+  ]);
+  const smsUrl = buildSmsUrl(smsMessage);
 
   return (
     <div className="w-full bg-[#E9EDF0] text-[#1e1e1e] py-10 sm:py-14 px-4 sm:px-8 lg:px-14 min-h-screen">
@@ -266,6 +313,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
             {/* Project Summary Box */}
             <div className="p-5 bg-[#E9EDF0]/50 rounded-xl border border-[#1e1e1e]/10 space-y-2.5 text-xs sm:text-sm">
+              {bookingReference && (
+                <div className="flex justify-between items-center gap-4">
+                  <span className="text-[#1e1e1e]/60 font-light shrink-0">Booking Reference:</span>
+                  <span className="font-medium text-[#321B35]">{bookingReference}</span>
+                </div>
+              )}
               <div className="flex justify-between items-start gap-4">
                 <span className="text-[#1e1e1e]/60 font-light shrink-0">Property Address:</span>
                 <span className="font-medium text-right text-[#1e1e1e]">{propertyAddress}</span>
@@ -309,15 +362,26 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
               </p>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                {whatsappUrl && (
                 <a
-                  href={`https://wa.me/919972727446?text=${whatsappMessage}`}
+                  href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex-1 py-3 px-5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Send via WhatsApp</span>
+                  <span>Open WhatsApp</span>
                 </a>
+                )}
+                {smsUrl && (
+                  <a
+                    href={smsUrl}
+                    className="flex-1 py-3 px-5 rounded-full bg-[#321B35] hover:bg-[#4a274d] text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    <span>Open SMS</span>
+                  </a>
+                )}
 
                 <a
                   href="tel:9972727446"
@@ -327,6 +391,21 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   <span>Call 9972727446</span>
                 </a>
               </div>
+              {whatsappUrl && (
+                <p className="text-[11px] text-[#1e1e1e]/60">
+                  WhatsApp will open with a prefilled message. Review it and press Send yourself.
+                </p>
+              )}
+              {smsUrl && (
+                <p className="text-[11px] text-[#1e1e1e]/60">
+                  SMS opens with a prepared message on mobile. Review it and press Send yourself; your carrier may charge for the text.
+                </p>
+              )}
+              {!whatsappUrl && !smsUrl && (
+                <p className="text-[11px] text-[#1e1e1e]/60">
+                  Direct messaging is not configured for this environment.
+                </p>
+              )}
             </div>
 
             <div className="pt-2 text-center">
@@ -364,6 +443,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                           Full Name <span className="text-red-500">*</span>
                         </label>
                         <input
+                          ref={fullNameRef}
                           type="text"
                           value={fullName}
                           onChange={(e) => {
@@ -387,6 +467,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                           Phone Number <span className="text-red-500">*</span>
                         </label>
                         <input
+                          ref={phoneRef}
                           type="tel"
                           value={phone}
                           onChange={(e) => {
@@ -410,12 +491,19 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                           Email Address <span className="text-[#1e1e1e]/40 font-normal">(optional)</span>
                         </label>
                         <input
+                          ref={emailRef}
                           type="email"
                           value={email}
                           onChange={(e) => setEmail(e.target.value)}
                           placeholder="email@example.com"
                           className={inputClass}
                         />
+                        {errors.email && (
+                          <p className={errorClass}>
+                            <AlertCircle className="w-3.5 h-3.5" />
+                            <span>{errors.email}</span>
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -466,6 +554,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                         Property Address <span className="text-red-500">*</span>
                       </label>
                       <input
+                        ref={propertyAddressRef}
                         type="text"
                         value={propertyAddress}
                         onChange={(e) => {
@@ -711,6 +800,11 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   </div>
 
                   {/* Action Buttons */}
+                  {submitError && (
+                    <div className="mt-4 px-4 py-3 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs">
+                      {submitError}
+                    </div>
+                  )}
                   <div className="pt-2 flex flex-col-reverse sm:flex-row gap-3">
                     <button
                       type="button"
@@ -722,9 +816,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                     <button
                       type="button"
                       onClick={handleSubmitEnquiry}
+                      disabled={isSubmitting}
                       className="flex-1 py-3.5 px-8 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-xs sm:text-sm font-medium tracking-wide transition-colors cursor-pointer shadow-sm text-center"
                     >
-                      Submit Enquiry
+                      {isSubmitting ? 'Submitting…' : 'Submit Enquiry'}
                     </button>
                   </div>
                 </div>

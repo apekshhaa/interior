@@ -39,16 +39,19 @@ export interface BookingDetails {
   approxArea: string;
   selectedServices: string[];
   preferredTextures: string[];
+  selectedColours?: string[];
   preferredDate: string;
   preferredTime: string;
   notes: string;
 }
 
 export interface User {
+  id?: string;
   name: string;
   email: string;
   phone: string;
   location?: string;
+  role?: 'customer' | 'admin';
 }
 
 export type PageType = 'home' | 'services' | 'gallery' | 'shop' | 'product-detail' | 'about' | 'contact' | 'cart' | 'checkout' | 'confirmation' | 'auth';

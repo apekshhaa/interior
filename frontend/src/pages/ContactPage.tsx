@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { PageType } from '../types';
-import { CheckCircle2, Phone, MapPin } from 'lucide-react';
+import { BookingDetails, PageType } from '../types';
+import { CheckCircle2, Phone, MapPin, MessageSquare } from 'lucide-react';
+import { buildSmsUrl, buildWhatsAppUrl } from '../lib/whatsapp';
 
 interface ContactPageProps {
   onNavigate: (page: PageType) => void;
   // onBookNow is passed by App.tsx — kept in interface to avoid TS errors
-  onBookNow?: () => void;
+  onBookNow?: (prefill?: Partial<BookingDetails>) => void;
 }
 
 // Verified contact details
@@ -51,15 +52,7 @@ function validateEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
 }
 
-// ---------------------------------------------------------------------------
-// Note on form submission:
-// This project has no backend API endpoint or email service configured.
-// The form currently simulates submission with a client-side delay.
-// To integrate a real submission, connect to a service such as Formspree,
-// EmailJS, or a custom API route and replace the setTimeout below.
-// ---------------------------------------------------------------------------
-
-export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
+export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate, onBookNow }) => {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -91,22 +84,32 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
       return;
     }
     setErrors({});
-    setIsSubmitting(true);
     setSubmitResult(null);
-
-    // Simulated submission — replace with real API call when backend is available
-    setTimeout(() => {
-      setIsSubmitting(false);
-      // Simulate success; change to 'error' if the API call fails
-      setSubmitResult('success');
-      setForm(EMPTY_FORM);
-    }, 900);
+    if (!onBookNow) {
+      setSubmitResult('error');
+      return;
+    }
+    setIsSubmitting(false);
+    onBookNow({
+      firstName: form.firstName,
+      lastName: form.lastName,
+      email: form.email,
+      phone: form.phone,
+      selectedServices: [form.service],
+      notes: form.details,
+    });
   };
 
   const inputClass =
     'w-full px-4 py-3 bg-white border border-[#1e1e1e]/20 rounded-xl text-sm text-[#1e1e1e] focus:outline-none focus:border-[#321B35] transition-colors placeholder:text-[#1e1e1e]/40';
   const labelClass = 'block text-xs font-medium text-[#1e1e1e]/70 mb-1.5';
   const errorClass = 'mt-1.5 text-xs text-red-600';
+  const whatsappUrl = buildWhatsAppUrl(
+    'Hello COLOUR TONE, I would like help arranging a painting or wall-texture consultation.',
+  );
+  const smsUrl = buildSmsUrl(
+    'Hello COLOUR TONE, I would like help arranging a painting or wall-texture consultation.',
+  );
 
   return (
     <div className="w-full bg-[#E9EDF0] text-[#1e1e1e] py-16 px-6 sm:px-10 lg:px-16 min-h-screen">
@@ -287,6 +290,31 @@ export const ContactPage: React.FC<ContactPageProps> = ({ onNavigate }) => {
                   {PHONE_2}
                 </a>
               </div>
+              {whatsappUrl && (
+                <a
+                  href={whatsappUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-medium transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Open WhatsApp to contact us
+                </a>
+              )}
+              {smsUrl && (
+                <a
+                  href={smsUrl}
+                  className="inline-flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-[#321B35] hover:bg-[#4a274d] text-white text-xs font-medium transition-colors"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Open SMS to contact us
+                </a>
+              )}
+              {(whatsappUrl || smsUrl) && (
+                <p className="text-[11px] text-[#1e1e1e]/60 max-w-sm">
+                  These buttons prepare a message for you to review and send manually. SMS works best on a phone and your carrier may charge for it.
+                </p>
+              )}
 
               <div className="p-5 bg-white/60 rounded-2xl border border-[#321B35]/10 space-y-2">
                 <span className="text-[11px] uppercase tracking-wider text-[#321B35]/60 flex items-center gap-1.5 font-medium">

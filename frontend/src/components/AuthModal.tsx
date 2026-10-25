@@ -8,6 +8,14 @@ interface AuthModalProps {
   currentUser: User | null;
   onLogin: (user: User) => void;
   onLogout: () => void;
+  onAuthenticate: (input: {
+    mode: 'login' | 'signup';
+    name?: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword?: string;
+  }) => Promise<User>;
 }
 
 export const AuthModal: React.FC<AuthModalProps> = ({
@@ -16,10 +24,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   currentUser,
   onLogin,
   onLogout,
+  onAuthenticate,
 }) => {
   const [mode, setMode] = useState<'login' | 'signup'>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
@@ -41,21 +51,25 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       return;
     }
 
-    const userName = mode === 'signup' ? name : email.split('@')[0].replace(/[._]/g, ' ');
-    const formattedName = userName.charAt(0).toUpperCase() + userName.slice(1);
-
-    const user: User = {
-      name: formattedName,
+    onAuthenticate({
+      mode,
+      name: mode === 'signup' ? name : undefined,
       email,
-      phone: phone || '+91 9972727446',
-    };
-
-    onLogin(user);
-    setSuccessMsg(mode === 'signup' ? 'Account created successfully!' : 'Signed in successfully!');
-    setTimeout(() => {
-      setSuccessMsg('');
-      onClose();
-    }, 1000);
+      phone: mode === 'signup' ? phone : undefined,
+      password,
+      confirmPassword: mode === 'signup' ? confirmPassword : undefined,
+    })
+      .then((user) => {
+        onLogin(user);
+        setSuccessMsg(mode === 'signup' ? 'Account created successfully!' : 'Signed in successfully!');
+        setTimeout(() => {
+          setSuccessMsg('');
+          onClose();
+        }, 1000);
+      })
+      .catch((requestError: unknown) => {
+        setError(requestError instanceof Error ? requestError.message : 'Unable to authenticate.');
+      });
   };
 
   return (
@@ -112,6 +126,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   : 'Join COLOUR TONE to manage your texture selections'}
               </p>
             </div>
+
+            {mode === 'signup' && (
+              <div>
+                <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-1 ml-3">
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full px-5 py-2.5 rounded-full bg-white border border-[#321B35]/20 focus:outline-none focus:border-[#321B35] text-sm"
+                />
+              </div>
+            )}
 
             {/* Mode Switcher */}
             <div className="flex bg-white/80 p-1 rounded-full border border-[#321B35]/15 mb-6">

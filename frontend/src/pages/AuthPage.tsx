@@ -18,6 +18,15 @@ interface AuthPageProps {
   onNavigate: (page: PageType) => void;
   cartItems?: CartItem[];
   onUpdateUser?: (user: User) => void;
+  onAuthenticate: (input: {
+    mode: 'login' | 'signup';
+    name?: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword?: string;
+    rememberMe?: boolean;
+  }) => Promise<User>;
 }
 
 export const AuthPage: React.FC<AuthPageProps> = ({
@@ -27,6 +36,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
   onNavigate,
   cartItems = [],
   onUpdateUser,
+  onAuthenticate,
 }) => {
   // Login / Signup state (when not logged in)
   const [mode, setMode] = useState<'login' | 'signup'>('login');
@@ -163,35 +173,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
 
     setFormErrors({});
     setIsSubmitting(true);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      const displayName =
-        mode === 'signup'
-          ? name.trim()
-          : email.split('@')[0].replace(/[._]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-
-      const user: User = {
-        name: displayName,
-        email: email.trim(),
-        phone: phone.trim() || '+91 9972727446',
-        location: 'Mangalore, India',
-      };
-
-      if (rememberMe) {
-        try {
-          localStorage.setItem('colourtone_remember_me', 'true');
-        } catch {
-          // ignore
-        }
-      } else {
-        try {
-          localStorage.removeItem('colourtone_remember_me');
-        } catch {
-          // ignore
-        }
-      }
-
+    onAuthenticate({
+      mode,
+      name: mode === 'signup' ? name.trim() : undefined,
+      email: email.trim(),
+      phone: mode === 'signup' ? phone.trim() : undefined,
+      password,
+      confirmPassword: mode === 'signup' ? confirmPassword : undefined,
+      rememberMe,
+    })
+      .then((user) => {
       onLogin(user);
       setSuccessMessage(
         mode === 'signup'
@@ -199,10 +190,12 @@ export const AuthPage: React.FC<AuthPageProps> = ({
           : 'Signed in successfully. Welcome back!'
       );
 
-      setTimeout(() => {
-        onNavigate('home');
-      }, 900);
-    }, 600);
+      setTimeout(() => onNavigate('home'), 900);
+    })
+      .catch((error: unknown) => {
+        setFormErrors({ form: error instanceof Error ? error.message : 'Unable to authenticate.' });
+      })
+      .finally(() => setIsSubmitting(false));
   };
 
   return (
@@ -593,6 +586,11 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                 <div className="p-3 bg-emerald-50 border border-emerald-300 text-emerald-800 text-xs rounded-xl flex items-center gap-2 animate-fadeIn">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>{successMessage}</span>
+                </div>
+              )}
+              {formErrors.form && (
+                <div className="p-3 bg-red-50 border border-red-300 text-red-800 text-xs rounded-xl">
+                  {formErrors.form}
                 </div>
               )}
 

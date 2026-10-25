@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { PageType, Product } from '../types';
 import { SERVICES_LIST } from '../data/catalogue';
-import { Check, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
 
 interface ServicesPageProps {
   onNavigate: (page: PageType) => void;
   onAddToCart: (product: Product) => void;
-  onBookService: (serviceName: string) => void;
+  onBookService: (serviceName: string, prefill?: Partial<import('../types').BookingDetails>) => void;
 }
 
 export const ServicesPage: React.FC<ServicesPageProps> = ({
@@ -22,7 +22,6 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
   const [message, setMessage] = useState('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,16 +38,13 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
     }
 
     setFormErrors({});
-    setIsSubmitting(true);
-
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitSuccess(true);
-      setFirstName('');
-      setLastName('');
-      setEmail('');
-      setMessage('');
-    }, 750);
+    setIsSubmitting(false);
+    onBookService('Interior Painting', {
+      firstName,
+      lastName,
+      email,
+      notes: message,
+    });
   };
 
   return (
@@ -176,24 +172,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
 
           {/* Right Form */}
           <div className="lg:col-span-7">
-            {submitSuccess ? (
-              <div className="p-8 bg-white rounded-3xl border border-emerald-300 space-y-3">
-                <div className="flex items-center gap-2 text-emerald-700 font-medium">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <span className="text-lg">Inquiry Submitted!</span>
-                </div>
-                <p className="text-sm text-[#1e1e1e]/80 leading-relaxed">
-                  Thank you! Our technical texture consultant will review your project requirements and connect with you shortly.
-                </p>
-                <button
-                  onClick={() => setSubmitSuccess(false)}
-                  className="mt-2 px-5 py-2 rounded-full border border-[#321B35] text-xs font-medium"
-                >
-                  Submit another message
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={handleSubmit} className="space-y-5">
                 <div>
                   <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-2">
                     Name
@@ -299,8 +278,7 @@ export const ServicesPage: React.FC<ServicesPageProps> = ({
                     {isSubmitting ? 'Submitting...' : 'Submit'}
                   </button>
                 </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
       </section>

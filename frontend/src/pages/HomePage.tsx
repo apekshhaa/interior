@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { PageType, Product } from '../types';
 import { FEATURED_HOME_SERVICES } from '../data/catalogue';
-import { AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react';
+import { AlertCircle, ArrowRight } from 'lucide-react';
 
 interface HomePageProps {
   onNavigate: (page: PageType) => void;
   onAddToCart: (product: Product) => void;
   onSelectProduct: (product: Product) => void;
+  onBookService: (serviceName: string, prefill?: Partial<import('../types').BookingDetails>) => void;
 }
 
 export const HomePage: React.FC<HomePageProps> = ({
   onNavigate,
   onAddToCart,
   onSelectProduct,
+  onBookService,
 }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -22,7 +24,6 @@ export const HomePage: React.FC<HomePageProps> = ({
   const [projectDetails, setProjectDetails] = useState('');
   const [formErrors, setFormErrors] = useState<{ [key: string]: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   // Button spinner states for 3 featured cards (matching Frame 7)
   const [addingId, setAddingId] = useState<string | null>(null);
@@ -72,19 +73,14 @@ export const HomePage: React.FC<HomePageProps> = ({
     }
 
     setFormErrors({});
-    setIsSubmitting(true);
-
-    // Frontend-only confirmation (backend API not connected yet)
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setSubmitSuccess(true);
-      setFirstName('');
-      setLastName('');
-      setPhone('');
-      setEmail('');
-      setServiceRequired('');
-      setProjectDetails('');
-    }, 600);
+    setIsSubmitting(false);
+    onBookService(serviceRequired, {
+      firstName,
+      lastName,
+      phone,
+      email,
+      notes: projectDetails,
+    });
   };
 
   return (
@@ -240,24 +236,7 @@ export const HomePage: React.FC<HomePageProps> = ({
 
           {/* Right Form Fields */}
           <div className="lg:col-span-7">
-            {submitSuccess ? (
-              <div className="p-8 bg-white/80 rounded-3xl border border-emerald-300 text-[#321B35] space-y-3 animate-fadeIn">
-                <div className="flex items-center gap-2 text-emerald-700 font-medium">
-                  <CheckCircle2 className="w-6 h-6 text-emerald-600" />
-                  <span className="text-lg">Enquiry Form Validated (Demo Mode)</span>
-                </div>
-                <p className="text-sm text-[#1e1e1e]/80 leading-relaxed">
-                  Thank you for submitting your project requirements. Since backend services are not yet connected, your details have not been transmitted or stored. The form is ready for future API integration.
-                </p>
-                <button
-                  onClick={() => setSubmitSuccess(false)}
-                  className="mt-3 px-6 py-2 rounded-full border border-[#321B35] text-xs font-medium text-[#321B35] hover:bg-[#321B35]/5 cursor-pointer"
-                >
-                  Send another inquiry
-                </button>
-              </div>
-            ) : (
-              <form onSubmit={handleInquirySubmit} className="space-y-5">
+            <form onSubmit={handleInquirySubmit} className="space-y-5">
                 <div>
                   <label className="block text-xs font-medium text-[#1e1e1e]/80 mb-2">
                     Name
@@ -418,8 +397,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                     {isSubmitting ? 'Submitting...' : 'Send'}
                   </button>
                 </div>
-              </form>
-            )}
+            </form>
           </div>
         </div>
       </section>

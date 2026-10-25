@@ -8,6 +8,7 @@ interface HeaderProps {
   cartCount: number;
   currentUser: User | null;
   onOpenAuth: () => void;
+  onLogout: () => Promise<void>;
   onOpenBooking: () => void;
   isHeroOverlay?: boolean;
 }
@@ -18,6 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
   cartCount,
   currentUser,
   onOpenAuth,
+  onLogout,
   onOpenBooking,
   isHeroOverlay = false,
 }) => {
@@ -59,15 +61,12 @@ export const Header: React.FC<HeaderProps> = ({
           }}
           className="text-left group cursor-pointer focus:outline-none"
         >
-          <span
-            className={`font-serif text-2xl sm:text-3xl tracking-tight transition-colors ${
-              isDarkHero ? 'text-white' : 'text-[#321B35]'
-            }`}
-          >
-            Colour Tone
-          </span>
+          <img
+            src="/assets/colour-tone-logo.png"
+            alt="Colour Tone Texture Painting"
+            className="h-12 sm:h-14 w-auto max-w-[180px] object-contain"
+          />
         </button>
-
         {/* Desktop Navigation */}
         <nav className="hidden md:flex items-center space-x-8">
           <button
@@ -106,7 +105,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <span>My Selection</span>
           </button>
-
           {/* User Sign In / Profile status */}
           <button
             onClick={() => onNavigate('auth')}
@@ -125,6 +123,18 @@ export const Header: React.FC<HeaderProps> = ({
             <UserIcon className="w-3.5 h-3.5" />
             <span>{currentUser ? currentUser.name.split(' ')[0] : 'Sign In'}</span>
           </button>
+          {currentUser && (
+            <button
+              onClick={() => void onLogout()}
+              className={`text-xs tracking-wider px-3.5 py-1.5 rounded-full border transition-all cursor-pointer ${
+                isDarkHero
+                  ? 'border-white/40 text-white hover:bg-white/20'
+                  : 'border-[#321B35]/30 text-[#321B35] hover:border-[#321B35] hover:bg-[#321B35]/5'
+              }`}
+            >
+              Logout
+            </button>
+          )}
 
           {/* Book now Pill Button matching Video */}
           <button
@@ -233,7 +243,6 @@ export const Header: React.FC<HeaderProps> = ({
                 {cartCount}
               </span>
             </button>
-
             <div className="pt-2 flex flex-col gap-3">
               <button
                 onClick={() => {
@@ -244,6 +253,17 @@ export const Header: React.FC<HeaderProps> = ({
               >
                 {currentUser ? `Account: ${currentUser.name}` : 'Login / Sign Up'}
               </button>
+              {currentUser ? (
+                <button
+                  onClick={() => {
+                    void onLogout();
+                    setMobileMenuOpen(false);
+                  }}
+                  className="w-full py-2.5 rounded-full border border-[#321B35] text-[#321B35] text-sm font-medium"
+                >
+                  Logout
+                </button>
+              ) : null}
               <button
                 onClick={() => {
                   onOpenBooking();

@@ -18,15 +18,19 @@ export const Footer: React.FC<FooterProps> = ({ onNavigate }) => {
         <div className="flex flex-col lg:flex-row items-start lg:items-end justify-between gap-8 pb-12 border-b border-[#321B35]/10">
           {/* Brand */}
           <div className="space-y-3">
-            <h2
+            <button
               onClick={() => {
                 onNavigate('home');
                 window.scrollTo({ top: 0, behavior: 'smooth' });
               }}
-              className="font-serif text-3xl sm:text-5xl tracking-tight text-[#321B35] cursor-pointer hover:opacity-85 transition-opacity"
+              className="block cursor-pointer hover:opacity-85 transition-opacity"
             >
-              Colour Tone
-            </h2>
+              <img
+                src="/assets/colour-tone-logo.png"
+                alt="Colour Tone Texture Painting"
+                className="h-24 sm:h-28 w-auto max-w-[300px] object-contain"
+              />
+            </button>
             <p className="text-sm text-[#1e1e1e]/70 max-w-md leading-relaxed">
               20 years of painting experience · Mangalore, Karnataka, India.
               <br />

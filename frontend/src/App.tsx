@@ -20,11 +20,14 @@ import { CheckoutPage } from './pages/CheckoutPage';
 import { AuthPage } from './pages/AuthPage';
 import { FEATURED_HOME_SERVICES, SHOP_PRODUCTS } from './data/catalogue';
 import { Check, X } from 'lucide-react';
+import { ApiError, authApi, bookingApi } from './lib/api';
 
 export default function App() {
   const [currentPage, setCurrentPage] = useState<PageType>('home');
   const [selectedProduct, setSelectedProduct] = useState<Product>(SHOP_PRODUCTS[4]); // Commercial Scale Model default
   const [selectedServiceForBooking, setSelectedServiceForBooking] = useState<string>('');
+  const [bookingPrefill, setBookingPrefill] = useState<Partial<BookingDetails>>({});
+  const [bookingSession, setBookingSession] = useState(0);
 
   // Prepopulate initial cart similar to reference recording for seamless testing
   const [cartItems, setCartItems] = useState<CartItem[]>([
@@ -34,15 +37,22 @@ export default function App() {
     },
   ]);
 
-  // Current User (supports authentication flow)
-  const [currentUser, setCurrentUser] = useState<User | null>({
-    name: 'Adish Devadiga',
-    email: 'abhikshardevadiga@gmail.com',
-    phone: '+91 9972727446',
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
 
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    authApi.me()
+      .then(({ user }) => setCurrentUser(user))
+      .catch((error) => {
+        if (!(error instanceof ApiError) || error.status !== 401) {
+          console.error('Unable to restore authentication session');
+        }
+      })
+      .finally(() => setAuthLoading(false));
+  }, []);
 
   // Cart total count
   const cartCount = cartItems.reduce((acc, it) => acc + it.quantity, 0);
@@ -98,21 +108,62 @@ export default function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleBookService = (serviceName: string) => {
+  const handleBookService = (serviceName: string, prefill: Partial<BookingDetails> = {}) => {
+    setBookingSession((value) => value + 1);
     setSelectedServiceForBooking(serviceName);
+    setBookingPrefill(prefill);
     setCurrentPage('checkout');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleOpenBooking = () => {
+  const handleOpenBooking = (prefill: Partial<BookingDetails> = {}) => {
+    setBookingSession((value) => value + 1);
+    setBookingPrefill(prefill);
     setCurrentPage('checkout');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleBookingConfirmed = (details: BookingDetails, refId: string) => {
-    // Empty the cart on successful completion
     setCartItems([]);
     showToast(`Quotation request ${refId} submitted!`);
+  };
+
+  const handleAuthenticate = async (input: {
+    mode: 'login' | 'signup';
+    name?: string;
+    email: string;
+    phone?: string;
+    password: string;
+    confirmPassword?: string;
+    rememberMe?: boolean;
+  }) => {
+    const result =
+      input.mode === 'signup'
+        ? await authApi.signup({
+            name: input.name || '',
+            email: input.email,
+            phone: input.phone || '',
+            password: input.password,
+            confirmPassword: input.confirmPassword || '',
+          })
+        : await authApi.login({
+            email: input.email,
+            password: input.password,
+            rememberMe: input.rememberMe || false,
+          });
+    setCurrentUser(result.user);
+    return result.user;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await authApi.logout();
+      setCurrentUser(null);
+      setAuthModalOpen(false);
+      handleNavigate('home');
+    } catch {
+      showToast('Unable to sign out. Please try again.');
+    }
   };
 
   return (
@@ -124,6 +175,7 @@ export default function App() {
         cartCount={cartCount}
         currentUser={currentUser}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onLogout={handleLogout}
         onOpenBooking={handleOpenBooking}
         isHeroOverlay={currentPage === 'home'}
       />
@@ -135,6 +187,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onAddToCart={handleAddToCart}
             onSelectProduct={handleSelectProduct}
+            onBookService={(serviceName, prefill) => handleBookService(serviceName, prefill)}
           />
         )}
 
@@ -155,6 +208,7 @@ export default function App() {
             onSelectProduct={handleSelectProduct}
             onAddToCart={handleAddToCart}
             onNavigate={handleNavigate}
+            onOpenBooking={handleOpenBooking}
           />
         )}
 
@@ -177,7 +231,7 @@ export default function App() {
         {currentPage === 'contact' && (
           <ContactPage
             onNavigate={handleNavigate}
-            onBookNow={handleOpenBooking}
+            onBookNow={(prefill) => handleOpenBooking(prefill)}
           />
         )}
 
@@ -193,12 +247,15 @@ export default function App() {
 
         {currentPage === 'checkout' && (
           <CheckoutPage
+            key={bookingSession}
             items={cartItems}
             currentUser={currentUser}
             onRemoveItem={handleRemoveItem}
             onBookingConfirmed={handleBookingConfirmed}
             onBackToCart={() => handleNavigate('cart')}
             defaultServiceName={selectedServiceForBooking}
+            initialDetails={bookingPrefill}
+            onCreateBooking={(details) => bookingApi.create(details, cartItems)}
           />
         )}
 
@@ -210,9 +267,9 @@ export default function App() {
               showToast(`Welcome, ${u.name}!`);
             }}
             onLogout={() => {
-              setCurrentUser(null);
-              showToast('You have been signed out.');
+              void handleLogout().then(() => showToast('You have been signed out.'));
             }}
+            onAuthenticate={handleAuthenticate}
             onNavigate={handleNavigate}
             cartItems={cartItems}
             onUpdateUser={(u) => {
@@ -232,7 +289,8 @@ export default function App() {
         onClose={() => setAuthModalOpen(false)}
         currentUser={currentUser}
         onLogin={(u) => setCurrentUser(u)}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={() => void handleLogout()}
+        onAuthenticate={handleAuthenticate}
       />
 
       {/* Floating Toast Notification */}

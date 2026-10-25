@@ -171,23 +171,34 @@ interface ShopPageProps {
   onSelectProduct: (product: Product) => void;
   onAddToCart?: (product: Product, quantity?: number) => void;
   onNavigate?: (page: PageType) => void;
+  onOpenBooking?: () => void;
 }
 
 export const ShopPage: React.FC<ShopPageProps> = ({
   onSelectProduct,
   onAddToCart,
   onNavigate,
+  onOpenBooking,
 }) => {
   // Selection states for finishes & colours
   const [selectedFinishIds, setSelectedFinishIds] = useState<string[]>([
     'sand-texture',
     'venetian-plaster',
   ]);
-  const [selectedColourIds, setSelectedColourIds] = useState<string[]>([
-    'col-01',
-    'col-10',
-    'col-26',
-  ]);
+  const [selectedColourIds, setSelectedColourIds] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('colourtone_selected_colours');
+      if (saved) {
+        const ids = JSON.parse(saved);
+        if (Array.isArray(ids) && ids.every((id): id is string => typeof id === 'string')) {
+          return ids;
+        }
+      }
+    } catch {
+      // Use the curated defaults when browser storage is unavailable or invalid.
+    }
+    return ['col-01', 'col-10', 'col-26'];
+  });
 
   // Active preview item for the texture and colour visualiser
   const [activePreviewFinishId, setActivePreviewFinishId] = useState<string>('venetian-plaster');
@@ -201,6 +212,14 @@ export const ShopPage: React.FC<ShopPageProps> = ({
 
   // Active view tab for simple restrained navigation
   const [activeTab, setActiveTab] = useState<'all' | 'textures' | 'colours' | 'selection'>('all');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('colourtone_selected_colours', JSON.stringify(selectedColourIds));
+    } catch {
+      // Persistence is optional when browser storage is unavailable.
+    }
+  }, [selectedColourIds]);
 
   // Helper getters for selected finishes and colours
   const selectedFinishes = useMemo(() => {
@@ -293,7 +312,9 @@ export const ShopPage: React.FC<ShopPageProps> = ({
         onAddToCart(finish, 1);
       });
     }
-    if (onNavigate) {
+    if (onOpenBooking) {
+      onOpenBooking();
+    } else if (onNavigate) {
       onNavigate('checkout');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -581,20 +602,13 @@ export const ShopPage: React.FC<ShopPageProps> = ({
             {filteredColours.map((swatch) => {
               const isSelected = selectedColourIds.includes(swatch.id);
               return (
-                <div
+                <button
                   key={swatch.id}
-                  role="button"
-                  tabIndex={0}
+                  type="button"
                   aria-pressed={isSelected}
                   aria-label={`Select ${swatch.name}, ${swatch.hex}`}
                   onClick={() => toggleColourSelection(swatch.id)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      toggleColourSelection(swatch.id);
-                    }
-                  }}
-                  className={`bg-white rounded-2xl p-3 border transition-all duration-150 cursor-pointer flex flex-col justify-between ${
+                  className={`bg-white rounded-2xl p-3 border transition-all duration-150 cursor-pointer flex flex-col justify-between text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#321B35] focus-visible:ring-offset-2 ${
                     isSelected
                       ? 'border-[#321B35] ring-1 ring-[#321B35]'
                       : 'border-[#321B35]/10 hover:border-[#321B35]/30'
@@ -621,7 +635,7 @@ export const ShopPage: React.FC<ShopPageProps> = ({
                       {swatch.hex}
                     </p>
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
