@@ -181,23 +181,21 @@ export const ShopPage: React.FC<ShopPageProps> = ({
   onOpenBooking,
 }) => {
   // Selection states for finishes & colours
-  const [selectedFinishIds, setSelectedFinishIds] = useState<string[]>([
-    'sand-texture',
-    'venetian-plaster',
-  ]);
+  const [selectedFinishIds, setSelectedFinishIds] = useState<string[]>([]);
   const [selectedColourIds, setSelectedColourIds] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('colourtone_selected_colours');
       if (saved) {
         const ids = JSON.parse(saved);
         if (Array.isArray(ids) && ids.every((id): id is string => typeof id === 'string')) {
-          return ids;
+          const legacyDefaults = ['col-01', 'col-10', 'col-26'];
+          return ids.length === legacyDefaults.length && legacyDefaults.every((id) => ids.includes(id)) ? [] : ids;
         }
       }
     } catch {
-      // Use the curated defaults when browser storage is unavailable or invalid.
+      // Persistence is optional when browser storage is unavailable or invalid.
     }
-    return ['col-01', 'col-10', 'col-26'];
+    return [];
   });
 
   // Active preview item for the texture and colour visualiser

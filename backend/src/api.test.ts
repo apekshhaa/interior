@@ -13,17 +13,50 @@ process.env.NODE_ENV = 'test';
 describe('authentication and bookings API', () => {
   let mongo: MongoMemoryServer;
   let app: import('express').Express;
+  let getSessionCookieOptions: typeof import('./app.js').getSessionCookieOptions;
 
   beforeAll(async () => {
     mongo = await MongoMemoryServer.create();
     await mongoose.connect(mongo.getUri());
     const imported = await import('./app.js');
     app = imported.createApp({ sessionStore: new session.MemoryStore() });
+    getSessionCookieOptions = imported.getSessionCookieOptions;
   });
 
   afterAll(async () => {
     await mongoose.disconnect();
     await mongo.stop();
+  });
+
+  it('uses a secure cross-site cookie for production HTTPS deployments', () => {
+    expect(
+      getSessionCookieOptions({
+        NODE_ENV: 'production',
+        FRONTEND_URL: 'https://interior-nine-ecru.vercel.app',
+        SESSION_TTL_DAYS: 7,
+      }),
+    ).toEqual({
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+  });
+
+  it('uses a secure cross-site cookie when HTTPS is configured even if NODE_ENV is omitted', () => {
+    expect(
+      getSessionCookieOptions({
+        NODE_ENV: 'development',
+        FRONTEND_URL: 'https://interior-nine-ecru.vercel.app',
+        SESSION_TTL_DAYS: 7,
+      }),
+    ).toMatchObject({
+      httpOnly: true,
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+    });
   });
 
   it('signs up, restores the session, and rejects duplicate email', async () => {

@@ -10,9 +10,25 @@ import { authRouter } from './routes/auth.js';
 import { adminBookingsRouter, bookingsRouter } from './routes/bookings.js';
 import { errorHandler, notFound } from './middleware/errors.js';
 
+function usesSecureSession(environment: Pick<typeof env, 'NODE_ENV' | 'FRONTEND_URL'>) {
+  return environment.NODE_ENV === 'production' || environment.FRONTEND_URL.startsWith('https://');
+}
+
+export function getSessionCookieOptions(environment: Pick<typeof env, 'NODE_ENV' | 'FRONTEND_URL' | 'SESSION_TTL_DAYS'>) {
+  const secureSession = usesSecureSession(environment);
+
+  return {
+    httpOnly: true,
+    secure: secureSession,
+    sameSite: secureSession ? ('none' as const) : ('lax' as const),
+    path: '/',
+    maxAge: environment.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
+  };
+}
+
 export function createApp(options: { sessionStore?: session.Store } = {}): express.Express {
   const app = express();
-  app.set('trust proxy', env.NODE_ENV === 'production' ? 1 : 0);
+  app.set('trust proxy', usesSecureSession(env) ? 1 : 0);
   app.use(helmet());
   app.use(cors({ origin: env.FRONTEND_URL, credentials: true }));
   app.use(express.json({ limit: '100kb' }));
@@ -23,12 +39,7 @@ export function createApp(options: { sessionStore?: session.Store } = {}): expre
       resave: false,
       saveUninitialized: false,
       store: options.sessionStore || MongoStore.create({ mongoUrl: env.MONGODB_URI, ttl: env.SESSION_TTL_DAYS * 24 * 60 * 60 }),
-      cookie: {
-        httpOnly: true,
-        secure: env.NODE_ENV === 'production',
-        sameSite: env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: env.SESSION_TTL_DAYS * 24 * 60 * 60 * 1000,
-      },
+      cookie: getSessionCookieOptions(env),
     }),
   );
 

@@ -18,7 +18,7 @@ import { ContactPage } from './pages/ContactPage';
 import { CartPage } from './pages/CartPage';
 import { CheckoutPage } from './pages/CheckoutPage';
 import { AuthPage } from './pages/AuthPage';
-import { FEATURED_HOME_SERVICES, SHOP_PRODUCTS } from './data/catalogue';
+import { SHOP_PRODUCTS } from './data/catalogue';
 import { Check, X } from 'lucide-react';
 import { ApiError, authApi, bookingApi } from './lib/api';
 
@@ -29,13 +29,7 @@ export default function App() {
   const [bookingPrefill, setBookingPrefill] = useState<Partial<BookingDetails>>({});
   const [bookingSession, setBookingSession] = useState(0);
 
-  // Prepopulate initial cart similar to reference recording for seamless testing
-  const [cartItems, setCartItems] = useState<CartItem[]>([
-    {
-      product: FEATURED_HOME_SERVICES[0], // Artisan Texture Consultation
-      quantity: 1,
-    },
-  ]);
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);

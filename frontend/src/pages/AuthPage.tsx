@@ -90,12 +90,16 @@ export const AuthPage: React.FC<AuthPageProps> = ({
       if (saved) {
         const ids: string[] = JSON.parse(saved);
         const matched = COLOUR_PALETTE.filter((c) => ids.includes(c.id));
-        if (matched.length > 0) return matched;
+        if (matched.length > 0) {
+          const legacyDefaults = ['col-01', 'col-10', 'col-26'];
+          if (ids.length === legacyDefaults.length && legacyDefaults.every((id) => ids.includes(id))) return [];
+          return matched;
+        }
       }
     } catch {
       // ignore
     }
-    return COLOUR_PALETTE.filter((c) => ['col-01', 'col-10', 'col-26'].includes(c.id));
+    return [];
   }, []);
 
   const totalSavedCount = savedTextures.length + savedColours.length;

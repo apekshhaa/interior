@@ -92,13 +92,16 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       if (saved) {
         const ids: string[] = JSON.parse(saved);
         const matched = COLOUR_PALETTE.filter((c) => ids.includes(c.id));
-        if (Array.isArray(ids)) return matched;
+        if (Array.isArray(ids)) {
+          const legacyDefaults = ['col-01', 'col-10', 'col-26'];
+          if (ids.length === legacyDefaults.length && legacyDefaults.every((id) => ids.includes(id))) return [];
+          return matched;
+        }
       }
     } catch {
       // Fallback
     }
-    // Initial sensible palette selection
-    return COLOUR_PALETTE.filter((c) => ['col-01', 'col-10', 'col-26'].includes(c.id));
+    return [];
   });
 
   const handleRemoveColour = (id: string) => {
