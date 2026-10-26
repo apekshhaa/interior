@@ -119,7 +119,7 @@ export default function App() {
 
   const handleBookingConfirmed = (details: BookingDetails, refId: string) => {
     setCartItems([]);
-    showToast(`Quotation request ${refId} submitted!`);
+    showToast(`Booking ${refId} saved. Please send the WhatsApp message to complete your enquiry.`);
   };
 
   const handleAuthenticate = async (input: {

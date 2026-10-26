@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { CartItem, BookingDetails, User } from '../types';
 import { COLOUR_PALETTE, ColourSwatch } from '../data/colours';
 import { ArrowLeft, Check, Phone, MessageSquare, AlertCircle } from 'lucide-react';
-import { buildSmsUrl, buildWhatsAppUrl } from '../lib/whatsapp';
+import { buildWhatsAppUrl } from '../lib/whatsapp';
+import { buildBookingWhatsAppMessage } from '../lib/bookingMessage';
 
 interface CheckoutPageProps {
   items: CartItem[];
@@ -79,6 +80,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [submitError, setSubmitError] = useState('');
   const [bookingReference, setBookingReference] = useState('');
+  const [submittedItems, setSubmittedItems] = useState<CartItem[] | null>(null);
+  const [whatsappOpenAttempted, setWhatsappOpenAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fullNameRef = useRef<HTMLInputElement>(null);
   const phoneRef = useRef<HTMLInputElement>(null);
@@ -168,6 +171,10 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   const handleSubmitEnquiry = async () => {
     if (isSubmitting) return;
+    if (bookingReference) {
+      setStage('submitted');
+      return;
+    }
     if (!currentUser) {
       setSubmitError('Please sign in before submitting a booking request.');
       return;
@@ -209,6 +216,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         // Local history is optional; the server record is authoritative.
       }
       setBookingReference(booking.reference);
+      setSubmittedItems(items);
       onBookingConfirmed(bookingData, booking.reference);
       setStage('submitted');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -226,52 +234,46 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   // Construct WhatsApp enquiry message
   const whatsappMessage = useMemo(() => {
-    const parts = [
-      `Hello COLOUR TONE, I would like to enquire about a painting project.`,
-      `Name: ${fullName}`,
-      bookingReference ? `Booking Reference: ${bookingReference}` : '',
-      `Property Type: ${propertyType}`,
-      selectedServices.length > 0 ? `Services Required: ${selectedServices.join(', ')}` : '',
-      preferredDate ? `Preferred Consultation Date: ${preferredDate} (${preferredTime})` : '',
-      uniqueTextures.length > 0
-        ? `Selected Textures: ${uniqueTextures.map((t) => t.product.name).join(', ')}`
-        : '',
-      selectedColours.length > 0
-        ? `Selected Colours: ${selectedColours.map((c) => `${c.name} (${c.hex})`).join(', ')}`
-        : '',
-      `Please help me arrange a consultation. I will review this message and press Send in WhatsApp.`,
-    ]
-      .filter(Boolean)
-      .join('\n');
-    return parts;
+    const nameParts = fullName.trim().split(/\s+/);
+    const bookingDetails: BookingDetails = {
+      firstName: nameParts[0] || '',
+      lastName: nameParts.slice(1).join(' ') || '',
+      email: email.trim(),
+      phone: phone.trim(),
+      propertyAddress: propertyAddress.trim(),
+      propertyType,
+      approxArea: approxArea.trim(),
+      selectedServices,
+      preferredTextures: uniqueTextures.map((t) => t.product.name),
+      selectedColours: selectedColours.map((colour) => `${colour.name} (${colour.hex})`),
+      preferredDate,
+      preferredTime,
+      notes: requirements.trim(),
+    };
+    return buildBookingWhatsAppMessage(bookingDetails, bookingReference, submittedItems ?? items);
   }, [
     fullName,
+    email,
+    phone,
+    propertyAddress,
     propertyType,
+    approxArea,
     selectedServices,
     preferredDate,
     preferredTime,
     uniqueTextures,
     selectedColours,
+    requirements,
+    items,
+    submittedItems,
     bookingReference,
   ]);
   const whatsappUrl = buildWhatsAppUrl(whatsappMessage);
-  const smsMessage = useMemo(() => [
-    `COLOUR TONE enquiry`,
-    `Name: ${fullName}`,
-    bookingReference ? `Ref: ${bookingReference}` : '',
-    selectedServices.length > 0 ? `Service: ${selectedServices.join(', ')}` : '',
-    selectedColours.length > 0 ? `Colours: ${selectedColours.map((c) => c.name).join(', ')}` : '',
-    preferredDate ? `Consultation: ${preferredDate} (${preferredTime})` : '',
-  ].filter(Boolean).join('\n'), [
-    fullName,
-    bookingReference,
-    selectedServices,
-    selectedColours,
-    preferredDate,
-    preferredTime,
-  ]);
-  const smsUrl = buildSmsUrl(smsMessage);
-
+  useEffect(() => {
+    if (stage !== 'submitted' || !whatsappUrl || whatsappOpenAttempted) return;
+    setWhatsappOpenAttempted(true);
+    window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
+  }, [stage, whatsappUrl, whatsappOpenAttempted]);
   return (
     <div className="w-full bg-[#E9EDF0] text-[#1e1e1e] py-10 sm:py-14 px-4 sm:px-8 lg:px-14 min-h-screen">
       <div className="max-w-6xl mx-auto">
@@ -300,17 +302,17 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         </header>
 
         {stage === 'submitted' ? (
-          /* Honest Enquiry Submitted View (No fake booking confirmation or simulated calendar lock) */
+          /* Booking is saved before WhatsApp is opened; delivery is not claimed here. */
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#321B35]/15 shadow-sm space-y-6">
             <div className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-wider text-[#321B35] bg-[#321B35]/10 px-3 py-1 rounded-full">
-                Enquiry Prepared
+                Booking Saved — WhatsApp Required
               </span>
               <h2 className="font-serif text-2xl sm:text-3xl text-[#321B35] pt-2">
                 Thank you{fullName ? `, ${fullName}` : ''}
               </h2>
               <p className="text-sm text-[#1e1e1e]/75 font-light leading-relaxed">
-                Your project details and selections have been prepared. As site visits and consultations require direct schedule coordination, appointment dates and times are finalized directly with our team.
+                Your booking has been saved. Please send your booking details on WhatsApp to complete your enquiry. WhatsApp will open with a prefilled message; review it and press Send yourself.
               </p>
             </div>
 
@@ -373,19 +375,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                   className="flex-1 py-3 px-5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Open WhatsApp</span>
+                  <span>Open WhatsApp & Send Details</span>
                 </a>
                 )}
-                {smsUrl && (
-                  <a
-                    href={smsUrl}
-                    className="flex-1 py-3 px-5 rounded-full bg-[#321B35] hover:bg-[#4a274d] text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
-                  >
-                    <MessageSquare className="w-4 h-4" />
-                    <span>Open SMS</span>
-                  </a>
-                )}
-
                 <a
                   href="tel:9972727446"
                   className="flex-1 py-3 px-5 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
@@ -396,17 +388,12 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
               </div>
               {whatsappUrl && (
                 <p className="text-[11px] text-[#1e1e1e]/60">
-                  WhatsApp will open with a prefilled message. Review it and press Send yourself.
+                  If WhatsApp did not open, use the button above. Your enquiry is not complete until you review the message and press Send in WhatsApp. We cannot verify delivery from a normal click-to-chat link.
                 </p>
               )}
-              {smsUrl && (
-                <p className="text-[11px] text-[#1e1e1e]/60">
-                  SMS opens with a prepared message on mobile. Review it and press Send yourself; your carrier may charge for the text.
-                </p>
-              )}
-              {!whatsappUrl && !smsUrl && (
-                <p className="text-[11px] text-[#1e1e1e]/60">
-                  Direct messaging is not configured for this environment.
+              {!whatsappUrl && (
+                <p className="text-[11px] text-red-700">
+                  WhatsApp is not configured in this environment. Booking reference {bookingReference} was saved, but the enquiry cannot be completed through WhatsApp here.
                 </p>
               )}
             </div>
