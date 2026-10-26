@@ -313,7 +313,7 @@ export const HomePage: React.FC<HomePageProps> = ({
                           setFormErrors({ ...formErrors, phone: '' });
                         }
                       }}
-                      placeholder="e.g. 9972727446"
+                      placeholder="e.g. 9000000000"
                       className="w-full px-5 py-3 rounded-full bg-white/70 border border-[#1e1e1e]/25 focus:outline-none focus:border-[#321B35] focus:bg-white text-sm"
                     />
                   </div>

@@ -473,7 +473,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                         type="tel"
                         value={editPhone}
                         onChange={(e) => setEditPhone(e.target.value)}
-                        placeholder="+91 99727 27446"
+                        placeholder="+91 90000 00000"
                         className="w-full px-4 py-2.5 rounded-xl border border-[#1e1e1e]/20 text-sm focus:outline-none focus:border-[#321B35]"
                       />
                     </div>
@@ -614,7 +614,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Adish Devadiga"
+                      placeholder="e.g. Jane Doe"
                       className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#1e1e1e]/20 focus:outline-none focus:border-[#321B35] text-sm"
                     />
                   </div>
@@ -654,7 +654,7 @@ export const AuthPage: React.FC<AuthPageProps> = ({
                       type="tel"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      placeholder="+91 99727 27446"
+                      placeholder="+91 90000 00000"
                       className="w-full px-4 py-2.5 rounded-xl bg-white border border-[#1e1e1e]/20 focus:outline-none focus:border-[#321B35] text-sm"
                     />
                   </div>
