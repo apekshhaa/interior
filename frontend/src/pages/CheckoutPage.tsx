@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { CartItem, BookingDetails, User } from '../types';
 import { COLOUR_PALETTE, ColourSwatch } from '../data/colours';
-import { ArrowLeft, Check, Phone, MessageSquare, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Check, MessageSquare, AlertCircle } from 'lucide-react';
 import { buildWhatsAppUrl } from '../lib/whatsapp';
 import { buildBookingWhatsAppMessage } from '../lib/bookingMessage';
 
@@ -40,8 +40,8 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   initialDetails = {},
   onCreateBooking,
 }) => {
-  // Navigation stage: 'form' | 'review' | 'submitted'
-  const [stage, setStage] = useState<'form' | 'review' | 'submitted'>('form');
+  // Navigation stage: 'form' | 'review' | 'whatsapp-required'
+  const [stage, setStage] = useState<'form' | 'review' | 'whatsapp-required'>('form');
 
   // Section 1: Contact Details (no hardcoded fake customer data)
   const [fullName, setFullName] = useState(
@@ -172,7 +172,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const handleSubmitEnquiry = async () => {
     if (isSubmitting) return;
     if (bookingReference) {
-      setStage('submitted');
+      setStage('whatsapp-required');
       return;
     }
     if (!currentUser) {
@@ -218,7 +218,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
       setBookingReference(booking.reference);
       setSubmittedItems(items);
       onBookingConfirmed(bookingData, booking.reference);
-      setStage('submitted');
+      setStage('whatsapp-required');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Unable to submit your booking request.');
@@ -270,7 +270,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   ]);
   const whatsappUrl = buildWhatsAppUrl(whatsappMessage);
   useEffect(() => {
-    if (stage !== 'submitted' || !whatsappUrl || whatsappOpenAttempted) return;
+    if (stage !== 'whatsapp-required' || !whatsappUrl || whatsappOpenAttempted) return;
     setWhatsappOpenAttempted(true);
     window.open(whatsappUrl, '_blank', 'noopener,noreferrer');
   }, [stage, whatsappUrl, whatsappOpenAttempted]);
@@ -301,18 +301,18 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
           </p>
         </header>
 
-        {stage === 'submitted' ? (
+        {stage === 'whatsapp-required' ? (
           /* Booking is saved before WhatsApp is opened; delivery is not claimed here. */
           <div className="max-w-2xl mx-auto bg-white p-8 sm:p-12 rounded-2xl border border-[#321B35]/15 shadow-sm space-y-6">
             <div className="space-y-2">
               <span className="text-xs font-medium uppercase tracking-wider text-[#321B35] bg-[#321B35]/10 px-3 py-1 rounded-full">
-                Booking Saved — WhatsApp Required
+                WHATSAPP ENQUIRY REQUIRED
               </span>
               <h2 className="font-serif text-2xl sm:text-3xl text-[#321B35] pt-2">
-                Thank you{fullName ? `, ${fullName}` : ''}
+                Your enquiry is not complete yet
               </h2>
               <p className="text-sm text-[#1e1e1e]/75 font-light leading-relaxed">
-                Your booking has been saved. Please send your booking details on WhatsApp to complete your enquiry. WhatsApp will open with a prefilled message; review it and press Send yourself.
+                Your booking details have been saved, but your enquiry is not complete until you send the message on WhatsApp. Review the prefilled message and press Send.
               </p>
             </div>
 
@@ -360,40 +360,37 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
               </div>
             </div>
 
-            {/* Direct Contact Actions */}
+            {/* WhatsApp is the required completion step. */}
             <div className="space-y-3 pt-2">
               <p className="text-xs text-[#1e1e1e]/70 leading-relaxed font-light">
-                Our texture specialist in Mangalore will contact you to discuss your project and arrange physical finish samples. To reach us immediately, choose an option below:
+                Complete this enquiry by sending the saved booking details to COLOUR TONE on WhatsApp.
               </p>
 
-              <div className="flex flex-col sm:flex-row gap-3 pt-1">
-                {whatsappUrl && (
+              <div className="pt-1">
+                {whatsappUrl ? (
                 <a
                   href={whatsappUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex-1 py-3 px-5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
+                  className="w-full py-4 px-5 rounded-full bg-emerald-700 hover:bg-emerald-800 text-white text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
                 >
                   <MessageSquare className="w-4 h-4" />
-                  <span>Open WhatsApp & Send Details</span>
+                  <span>Send Booking Details on WhatsApp</span>
                 </a>
+                ) : (
+                  <div className="w-full py-4 px-5 rounded-full bg-gray-300 text-gray-700 text-sm font-medium text-center">
+                    WhatsApp is unavailable
+                  </div>
                 )}
-                <a
-                  href="tel:9972727446"
-                  className="flex-1 py-3 px-5 rounded-full bg-[#1e1e1e] hover:bg-[#321B35] text-white text-xs sm:text-sm font-medium transition-colors flex items-center justify-center gap-2 text-center"
-                >
-                  <Phone className="w-4 h-4" />
-                  <span>Call 9972727446</span>
-                </a>
               </div>
               {whatsappUrl && (
                 <p className="text-[11px] text-[#1e1e1e]/60">
-                  If WhatsApp did not open, use the button above. Your enquiry is not complete until you review the message and press Send in WhatsApp. We cannot verify delivery from a normal click-to-chat link.
+                  If WhatsApp did not open, use the button above. Your enquiry remains incomplete until you review the message and press Send in WhatsApp. A normal WhatsApp link cannot verify whether the message was sent or delivered.
                 </p>
               )}
               {!whatsappUrl && (
                 <p className="text-[11px] text-red-700">
-                  WhatsApp is not configured in this environment. Booking reference {bookingReference} was saved, but the enquiry cannot be completed through WhatsApp here.
+                WhatsApp is not configured in this environment. Booking reference {bookingReference} was saved, but the enquiry cannot be completed through WhatsApp here. Please return when WhatsApp is available.
                 </p>
               )}
             </div>
@@ -404,7 +401,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
                 onClick={onBackToCart}
                 className="text-xs text-[#321B35] hover:underline underline-offset-2 cursor-pointer font-medium"
               >
-                Return to Catalogue
+                Return to website (WhatsApp enquiry still required)
               </button>
             </div>
           </div>
