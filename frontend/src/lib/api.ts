@@ -1,4 +1,5 @@
 import { BookingDetails, CartItem, User } from '../types';
+import { SavedBookingForWhatsApp } from './bookingMessage';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
 
@@ -55,7 +56,7 @@ export const authApi = {
 
 export const bookingApi = {
   create: (details: BookingDetails, items: CartItem[]) =>
-    request<{ booking: { reference: string } }>('/bookings', {
+    request<{ booking: SavedBookingForWhatsApp }>('/bookings', {
       method: 'POST',
       body: JSON.stringify({
         ...details,

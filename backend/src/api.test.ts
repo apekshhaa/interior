@@ -112,6 +112,14 @@ describe('authentication and bookings API', () => {
     });
     expect(created.status).toBe(201);
     expect(created.body.booking.reference).toMatch(/^CT-/);
+    expect(created.body.booking.customer.email).toBeUndefined();
+    expect(created.body.booking.customer.phone).toBe('+91 9000000000');
+    expect(created.body.booking.propertyAddress).toBe('12 Coastal Road, Mangalore');
+    expect(created.body.booking.approxArea).toBe('');
+    expect(created.body.booking.selectedServices[0].name).toBe('Interior Painting');
+    expect(created.body.booking.preferredTextures).toEqual(['Travertine']);
+    expect(created.body.booking.selectedColours).toEqual(['Warm Sand (#D9C2A6)']);
+    expect(created.body.booking.notes).toBe('Living room feature wall');
 
     const history = await agent.get('/api/bookings/my');
     expect(history.status).toBe(200);

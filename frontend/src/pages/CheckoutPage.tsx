@@ -3,7 +3,7 @@ import { CartItem, BookingDetails, User } from '../types';
 import { COLOUR_PALETTE, ColourSwatch } from '../data/colours';
 import { ArrowLeft, Check, MessageSquare, AlertCircle } from 'lucide-react';
 import { buildWhatsAppUrl } from '../lib/whatsapp';
-import { buildBookingWhatsAppMessage } from '../lib/bookingMessage';
+import { buildBookingWhatsAppMessage, SavedBookingForWhatsApp } from '../lib/bookingMessage';
 
 interface CheckoutPageProps {
   items: CartItem[];
@@ -13,7 +13,7 @@ interface CheckoutPageProps {
   onBackToCart: () => void;
   defaultServiceName?: string;
   initialDetails?: Partial<BookingDetails>;
-  onCreateBooking: (details: BookingDetails) => Promise<{ booking: { reference: string } }>;
+  onCreateBooking: (details: BookingDetails) => Promise<{ booking: SavedBookingForWhatsApp }>;
 }
 
 const AVAILABLE_SERVICES = [
@@ -80,7 +80,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [submitError, setSubmitError] = useState('');
   const [bookingReference, setBookingReference] = useState('');
-  const [submittedItems, setSubmittedItems] = useState<CartItem[] | null>(null);
+  const [submittedBooking, setSubmittedBooking] = useState<SavedBookingForWhatsApp | null>(null);
   const [whatsappOpenAttempted, setWhatsappOpenAttempted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const fullNameRef = useRef<HTMLInputElement>(null);
@@ -216,7 +216,7 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
         // Local history is optional; the server record is authoritative.
       }
       setBookingReference(booking.reference);
-      setSubmittedItems(items);
+      setSubmittedBooking(booking);
       onBookingConfirmed(bookingData, booking.reference);
       setStage('whatsapp-required');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -234,39 +234,9 @@ export const CheckoutPage: React.FC<CheckoutPageProps> = ({
 
   // Construct WhatsApp enquiry message
   const whatsappMessage = useMemo(() => {
-    const nameParts = fullName.trim().split(/\s+/);
-    const bookingDetails: BookingDetails = {
-      firstName: nameParts[0] || '',
-      lastName: nameParts.slice(1).join(' ') || '',
-      email: email.trim(),
-      phone: phone.trim(),
-      propertyAddress: propertyAddress.trim(),
-      propertyType,
-      approxArea: approxArea.trim(),
-      selectedServices,
-      preferredTextures: uniqueTextures.map((t) => t.product.name),
-      selectedColours: selectedColours.map((colour) => `${colour.name} (${colour.hex})`),
-      preferredDate,
-      preferredTime,
-      notes: requirements.trim(),
-    };
-    return buildBookingWhatsAppMessage(bookingDetails, bookingReference, submittedItems ?? items);
+    return submittedBooking ? buildBookingWhatsAppMessage(submittedBooking) : '';
   }, [
-    fullName,
-    email,
-    phone,
-    propertyAddress,
-    propertyType,
-    approxArea,
-    selectedServices,
-    preferredDate,
-    preferredTime,
-    uniqueTextures,
-    selectedColours,
-    requirements,
-    items,
-    submittedItems,
-    bookingReference,
+    submittedBooking,
   ]);
   const whatsappUrl = buildWhatsAppUrl(whatsappMessage);
   useEffect(() => {
